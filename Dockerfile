@@ -5,19 +5,13 @@ RUN apt-get update && \
     apt-get upgrade -y && \
     rm -rf /var/lib/apt/lists/*
 
-# The git clone and WORKDIR /home/node/n steps have been removed.
-# This assumes the main bot code (with index.js) is copied to the home directory.
+# Cleaned up WORKDIR and added COPY command
 
 USER node
-WORKDIR /home/node/src # Standard directory for Node.js apps on a container
+WORKDIR /home/node/src 
+COPY . . # <--- CRITICAL: Copies all files from your GitHub repo into /home/node/src
 
-# *** Important: We need to ensure the source code is copied into the container.
-# If the original repository used an implicit 'COPY' (which Render often does 
-# by default), this should work.
-
-# If the code isn't being copied, we need to explicitly add this line here:
-# COPY . . 
-# But for Render's default Docker build, we'll try without it first.
+# Now, running yarn install and npm start will find the package.json here.
 
 RUN yarn install --network-concurrency 1
 EXPOSE 7860
