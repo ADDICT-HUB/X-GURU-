@@ -130,9 +130,9 @@ async function loadSession() {
       return null;
     }
 
-    if (config.SESSION_ID.startsWith("Mercedes~")) {
+    if (config.SESSION_ID.startsWith("Xguru~")) {
       console.log(chalk.yellow("[ ⏳ ] Decoding base64 session..."));
-      const base64Data = config.SESSION_ID.replace("Mercedes~", "");
+      const base64Data = config.SESSION_ID.replace("Xguru~", "");
       if (!/^[A-Za-z0-9+/=]+$/.test(base64Data)) {
         throw new Error("Invalid base64 format in SESSION_ID");
       }
@@ -146,9 +146,9 @@ async function loadSession() {
       fsSync.writeFileSync(credsPath, decodedData);
       console.log(chalk.green("[ ✅ ] Base64 session decoded and saved successfully"));
       return sessionData;
-    } else if (config.SESSION_ID.startsWith("Mercedes~")) {
+    } else if (config.SESSION_ID.startsWith("Xguru~")) {
       console.log(chalk.yellow("[ ⏳ ] Downloading MEGA.nz session..."));
-      const megaFileId = config.SESSION_ID.replace("Mercedes~", "");
+      const megaFileId = config.SESSION_ID.replace("Xguru~", "");
       const filer = File.fromURL(`https://mega.nz/file/${megaFileId}`);
       const data = await new Promise((resolve, reject) => {
         filer.download((err, data) => {
@@ -160,7 +160,7 @@ async function loadSession() {
       console.log(chalk.green("[ ✅ ] MEGA session downloaded successfully"));
       return JSON.parse(data.toString());
     } else {
-      throw new Error("Invalid SESSION_ID format. Use 'Mercedes~' for base64 or 'Mercedes~' for MEGA.nz");
+      throw new Error("Invalid SESSION_ID format. Use 'Xguru~' for base64 or 'Xguru~' for MEGA.nz");
     }
   } catch (error) {
     console.error(chalk.red("❌ Error loading session:", error.message));
@@ -288,7 +288,7 @@ try {
   const prefix = getPrefix();
   const username = "betingrich4";
   const mrmalvin = `https://github.com/${username}`;
-  const repoUrl = "https://github.com/betingrich4/Mercedes";
+  const repoUrl = "https://github.com/ADDICT-HUB/X-GURU";
   const welcomeAudio = "https://files.catbox.moe/z47dgd.p3";
   
   // Get current date and time
