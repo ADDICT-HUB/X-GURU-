@@ -1,5 +1,5 @@
 {
-  "name": "Mercedes",
+  "name": "X-GURU",
   "version": "1.5.0",
   "description": "A WhatsApp Bot",
   "main": "index.js",
@@ -8,9 +8,9 @@
     "npm": ">=10.x"
   },
   "scripts": {
-    "start": "pm2 start index.js --deep-monitoring --attach --name Mercedes",
-    "stop": "pm2 stop Mercedes",
-    "restart": "pm2 restart Mercedes"
+    "start": "pm2 start index.js --deep-monitoring --attach --name X-GURU",
+    "stop": "pm2 stop X-GURU",
+    "restart": "pm2 restart X-GURU"
   },
   "dependencies": {
     "@whiskeysockets/baileys": "github:EdderBot02/bail",
