@@ -7,7 +7,7 @@ process.on("unhandledRejection", (reason, p) => {
   console.error("[❗] Unhandled Promise Rejection:", reason);
 });
 
-// Marisel
+// X-GURU
 
 const axios = require("axios");
 const config = require("./settings");
@@ -281,7 +281,7 @@ async function connectToWA() {
         setTimeout(connectToWA, 5000);
       }
     } else if (connection === "open") {
-      console.log(chalk.green("[ 🤖 ] X-GURU Connected ✅")); // Changed from Mercedes Connected ✅
+      console.log(chalk.green("[ 🤖 ] X-GURU Connected ✅")); // Updated Name
 
       // Load plugins
       const pluginPath = path.join(__dirname, "plugins");
