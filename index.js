@@ -7,7 +7,7 @@ process.on("unhandledRejection", (reason, p) => {
   console.error("[❗] Unhandled Promise Rejection:", reason);
 });
 
-// X-GURU
+// X-GURU (Updated Name Comment)
 
 const axios = require("axios");
 const config = require("./settings");
@@ -281,7 +281,7 @@ async function connectToWA() {
         setTimeout(connectToWA, 5000);
       }
     } else if (connection === "open") {
-      console.log(chalk.green("[ 🤖 ] X-GURU Connected ✅")); // Updated Name
+      console.log(chalk.green("[ 🤖 ] X-GURU Connected ✅")); // EDITED NAME
 
       // Load plugins
       const pluginPath = path.join(__dirname, "plugins");
@@ -302,8 +302,8 @@ try {
   const jid = malvin.decodeJid(malvin.user.id);
   if (!jid) throw new Error("Invalid JID for bot");
 
-  const botname = "X-GURU"; // **UPDATED NAME**
-  const ownername = "GuruTech"; // **UPDATED NAME**
+  const botname = "X-GURU"; // EDITED NAME
+  const ownername = "GuruTech"; // EDITED NAME
   const prefix = getPrefix();
   const username = "betingrich4";
   const mrmalvin = `https://github.com/${username}`;
