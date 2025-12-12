@@ -7,7 +7,7 @@ process.on("unhandledRejection", (reason, p) => {
   console.error("[❗] Unhandled Promise Rejection:", reason);
 });
 
-// GuruTech 
+// Marisel
 
 const axios = require("axios");
 const config = require("./settings");
@@ -117,26 +117,33 @@ const PORT = process.env.PORT || 7860; // Use the standard capitalized PORT vari
 let malvin;
 
 const sessionDir = path.join(__dirname, "./sessions");
-const credsPath = path.join(sessionDir, "creds.json"); // Path to the dynamically updated creds file
+const credsPath = path.join(sessionDir, "creds.json");
 
 if (!fsSync.existsSync(sessionDir)) {
   fsSync.mkdirSync(sessionDir, { recursive: true });
 }
 
+// ==========================================================
+// 🚨 CRITICAL FIX: FORCE SESSION DELETION FOR FRESH CONNECT
+// This ensures the bot always decodes the SESSION_ID if the prefix is present.
+// ==========================================================
+const rawSessionID = process.env.SESSION_ID; // Check ENV variable directly
+if (rawSessionID && rawSessionID.startsWith("Xguru~")) {
+  console.log(chalk.bgRed.white("[ ⚠️ ] FORCING CLEAN CONNECT: Deleting stale session directory..."));
+  try {
+    if (fsSync.existsSync(sessionDir)) {
+      fsSync.rmSync(sessionDir, { recursive: true, force: true });
+      fsSync.mkdirSync(sessionDir, { recursive: true });
+      console.log(chalk.bgGreen.black("[ ✅ ] Old session directory successfully deleted. Will decode fresh key."));
+    }
+  } catch (error) {
+    console.error(chalk.red("[ ❌ ] Error during session cleanup:", error.message));
+  }
+}
+// ==========================================================
+
 async function loadSession() {
   try {
-    // ----------------------------------------------------------------------
-    // 🚨 CRITICAL FIX: Conditional check to prevent infinite loop.
-    // If the main credentials file (creds.json) already exists, skip loading 
-    // the static SESSION_ID string. This stops the loop by letting Baileys 
-    // use its own dynamic state upon reconnection.
-    // ----------------------------------------------------------------------
-    if (fsSync.existsSync(credsPath)) {
-      console.log(chalk.yellow("[ ℹ️ ] Session files found on disk. Skipping static SESSION_ID load."));
-      return null;
-    }
-    // ----------------------------------------------------------------------
-    
     if (!config.SESSION_ID) {
       console.log(chalk.red("No SESSION_ID provided - Falling back to QR or pairing code"));
       return null;
@@ -155,8 +162,7 @@ async function loadSession() {
       } catch (error) {
         throw new Error("Failed to parse decoded base64 session data: " + error.message);
       }
-      // This line is where the session is saved, which caused the infinite loop if run repeatedly.
-      fsSync.writeFileSync(credsPath, decodedData); 
+      fsSync.writeFileSync(credsPath, decodedData);
       console.log(chalk.green("[ ✅ ] Base64 session decoded and saved successfully"));
       return sessionData;
     } else if (config.SESSION_ID.startsWith("Xguru~")) {
@@ -178,10 +184,6 @@ async function loadSession() {
   } catch (error) {
     console.error(chalk.red("❌ Error loading session:", error.message));
     console.log(chalk.green("Will attempt QR code or pairing code login"));
-    // Clean up corrupted file if writing failed
-    if (fsSync.existsSync(credsPath)) {
-        fsSync.unlinkSync(credsPath);
-    }
     return null;
   }
 }
@@ -190,17 +192,30 @@ async function connectWithPairing(malvin, useMobile) {
   if (useMobile) {
     throw new Error("Cannot use pairing code with mobile API");
   }
+  // Remove process.stdin.isTTY check for Render environment
   
-  // NOTE: The interactive parts were removed as Render is a non-interactive environment.
   console.log(chalk.bgYellow.black(" ACTION REQUIRED "));
   console.log(chalk.green("┌" + "─".repeat(46) + "┐"));
-  console.log(chalk.green("│ ") + chalk.bold("Bot is waiting for phone number via environment or API") + chalk.green(" │"));
+  console.log(chalk.green("│ ") + chalk.bold("Enter WhatsApp number to receive pairing code") + chalk.green(" │"));
   console.log(chalk.green("└" + "─".repeat(46) + "┘"));
   
-  // You must set the number here or via an environment variable in a deployed environment
-  // This temporary hardcoded number from the original script is kept for reference
-  let number = "254735403829"; 
+  // NOTE: This readline logic will fail in Render's non-interactive environment.
+  // The bot needs to be modified to accept the number via an environment variable
+  // or a web endpoint if deployed on Render as a Web Service.
+  // For now, we will assume you will run this locally to generate the code first.
   
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+  const question = (text) => new Promise((resolve) => rl.question(text, resolve));
+
+  // --- TEMPORARY FIX FOR LOCAL CONSOLE PAIRING ---
+  // We hardcode the number and skip the interactive prompt.
+  let number = "254735403829"; // <--- Set the number directly here (no + sign)
+  // --- END TEMPORARY FIX ---
+
+  // NOTE: Keep the rest of the function as is, starting with:
   number = number.replace(/[^0-9]/g, ""); 
   
   if (!number) {
@@ -227,8 +242,6 @@ async function connectToWA() {
   console.log(chalk.cyan("[ 🟠 ] Connecting to WhatsApp ⏳️..."));
 
   const creds = await loadSession();
-  // useMultiFileAuthState will load the state from disk if creds.json exists, 
-  // or use the freshly decoded creds if loadSession returned them.
   const { state, saveCreds } = await useMultiFileAuthState(path.join(__dirname, "./sessions"), {
     creds: creds || undefined,
   });
@@ -264,13 +277,11 @@ async function connectToWA() {
         }
         process.exit(1);
       } else {
-        // This is the reconnection logic that was causing the loop. 
-        // The fix in loadSession now allows this to function correctly.
         console.log(chalk.red("[ ⏳️ ] Connection lost, reconnecting..."));
         setTimeout(connectToWA, 5000);
       }
     } else if (connection === "open") {
-      console.log(chalk.green("[ 🤖 ] X-GURU Connected ✅"));
+      console.log(chalk.green("[ 🤖 ] X-GURU Connected ✅")); // Changed from Mercedes Connected ✅
 
       // Load plugins
       const pluginPath = path.join(__dirname, "plugins");
@@ -291,8 +302,8 @@ try {
   const jid = malvin.decodeJid(malvin.user.id);
   if (!jid) throw new Error("Invalid JID for bot");
 
-  const botname = "X-GURU";
-  const ownername = "ᴍᴀʀɪsᴇʟ";
+  const botname = "X-GURU"; // **UPDATED NAME**
+  const ownername = "GuruTech"; // **UPDATED NAME**
   const prefix = getPrefix();
   const username = "betingrich4";
   const mrmalvin = `https://github.com/${username}`;
