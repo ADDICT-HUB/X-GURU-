@@ -1,4 +1,4 @@
-const fs = require('fs');
+Const fs = require('fs');
 const path = require('path');
 const { getConfig } = require('./lib/configdb');
 const settings = require('./settingss');
@@ -17,15 +17,15 @@ module.exports = {
   SESSION_ID: settings.SESSION_ID || process.env.SESSION_ID || "", // Bot's session ID (keep secure)
   PREFIX: getConfig("PREFIX") || settings.PREFIX || ".", // Command prefix (e.g., ".", "/", "!")
   CHATBOT: getConfig("CHATBOT") || "on", // Chatbot toggle
-  BOT_NAME: getConfig("BOT_NAME") || process.env.BOT_NAME || "Vision V", // Bot's display name
+  BOT_NAME: getConfig("BOT_NAME") || process.env.BOT_NAME || "X-GURU", // **UPDATED:** Bot's display name
   MODE: getConfig("MODE") || process.env.MODE || "private", // Bot mode: public/private/group/inbox
-  REPO: process.env.REPO || "https://github.com/betingrich4/Mercedes", // Bot's GitHub repo
+  REPO: process.env.REPO || "https://github.com/ADDICT-HUB/X-GURU", // Bot's GitHub repo
   PAIRING_CODE: process.env.PARING_CODE || 'true', // true or false for terminal pairing
   BAILEYS: process.env.BAILEYS || "@whiskeysockets/baileys", // WhatsApp library
 
   // ===== OWNER & DEVELOPER SETTINGS =====
   OWNER_NUMBER: settings.OWNER_NUMBER || process.env.OWNER_NUMBER || "254740007567", // Owner's WhatsApp number
-  OWNER_NAME: getConfig("OWNER_NAME") || process.env.OWNER_NAME || "Marisel", // Owner's name
+  OWNER_NAME: getConfig("OWNER_NAME") || process.env.OWNER_NAME || "GuruTech", // **UPDATED:** Owner's name
   DEV: process.env.DEV || "254740007567", // Developer's contact
   DEVELOPER_NUMBER: '254740007567@s.whatsapp.net', // Developer's WhatsApp ID
   
@@ -51,7 +51,7 @@ module.exports = {
   OWNER_REACT: getConfig("OWNER_REACT") || process.env.OWNER_REACT || "false", // Owner-specific reactions
   CUSTOM_REACT: getConfig("CUSTOM_REACT") || process.env.CUSTOM_REACT || "false", // Custom emoji reactions
   CUSTOM_REACT_EMOJIS: getConfig("CUSTOM_REACT_EMOJIS") || process.env.CUSTOM_REACT_EMOJIS || "💝,💖,💗,❤️‍🩹,❤️,🧡,💛,💚,💙,💜,🤎,🖤,🤍", // Custom reaction emojis
-  STICKER_NAME: process.env.STICKER_NAME || "Mercedes", // Sticker pack name
+  STICKER_NAME: process.env.STICKER_NAME || "X-GURU", // **UPDATED:** Sticker pack name
   AUTO_STICKER: getConfig("AUTO_STICKER") || process.env.AUTO_STICKER || "false", // Auto-send stickers
 
   // ===== MEDIA & AUTOMATION =====
@@ -72,7 +72,7 @@ module.exports = {
   PM_BLOCKER: getConfig("PM_BLOCKER") || process.env.PM_BLOCKER || "true", // Block private messages
 
   // ===== BOT BEHAVIOR & APPEARANCE =====
-  DESCRIPTION: process.env.DESCRIPTION || "*ᴍᴀᴅᴇ ʙʏ ᴍᴀʀɪsᴇʟ*", // Bot footer
+  DESCRIPTION: process.env.DESCRIPTION || "*ᴍᴀᴅᴇ ʙʏ ɢᴜʀᴜᴛᴇᴄʜ*", // **UPDATED:** Bot footer
   PUBLIC_MODE: getConfig("PUBLIC_MODE") || process.env.PUBLIC_MODE || "true", // Allow public commands
   ALWAYS_ONLINE: getConfig("ALWAYS_ONLINE") || process.env.ALWAYS_ONLINE || "false", // Show bot as always online
   AUTO_STATUS_REACT: getConfig("AUTO_STATUS_REACT") || process.env.AUTO_STATUS_REACT || "true", // React to status updates
