@@ -7,7 +7,7 @@ process.on("unhandledRejection", (reason, p) => {
   console.error("[❗] Unhandled Promise Rejection:", reason);
 });
 
-// X-GURU (Updated Name Comment)
+// GuruTech 
 
 const axios = require("axios");
 const config = require("./settings");
@@ -108,10 +108,10 @@ const clearTempDir = () => {
 };
 setInterval(clearTempDir, 5 * 60 * 1000);
 
-// Express server
+// Express server (placeholder was here, now used below)
 const express = require("express");
 const app = express();
-const PORT = process.env.PORT || 7860;
+const PORT = process.env.PORT || 7860; // Use the standard capitalized PORT variable
 
 // Session authentication
 let malvin;
@@ -123,18 +123,13 @@ if (!fsSync.existsSync(sessionDir)) {
   fsSync.mkdirSync(sessionDir, { recursive: true });
 }
 
-// ==========================================================
-// Session Loading Function (Modified to prioritize clean state)
-// ==========================================================
 async function loadSession() {
-  // If SESSION_ID is not provided, we fall through to the pairing code logic
-  if (!config.SESSION_ID) {
-    console.log(chalk.yellow("[ ℹ️ ] SESSION_ID is empty. Proceeding to Pairing Code login."));
-    return null;
-  }
-
   try {
-    // Session ID decoding logic (kept for completeness, but user should avoid)
+    if (!config.SESSION_ID) {
+      console.log(chalk.red("No SESSION_ID provided - Falling back to QR or pairing code"));
+      return null;
+    }
+
     if (config.SESSION_ID.startsWith("Xguru~")) {
       console.log(chalk.yellow("[ ⏳ ] Decoding base64 session..."));
       const base64Data = config.SESSION_ID.replace("Xguru~", "");
@@ -142,86 +137,104 @@ async function loadSession() {
         throw new Error("Invalid base64 format in SESSION_ID");
       }
       const decodedData = Buffer.from(base64Data, "base64");
-      // Check if old sessions exist and clear them if a fresh key is provided
-      if (fsSync.existsSync(credsPath)) {
-        console.log(chalk.bgRed.white("[ ⚠️ ] Stale session found. Forcing cleanup for new SESSION_ID..."));
-        fsSync.rmSync(sessionDir, { recursive: true, force: true });
-        fsSync.mkdirSync(sessionDir, { recursive: true });
+      let sessionData;
+      try {
+        sessionData = JSON.parse(decodedData.toString("utf-8"));
+      } catch (error) {
+        throw new Error("Failed to parse decoded base64 session data: " + error.message);
       }
       fsSync.writeFileSync(credsPath, decodedData);
       console.log(chalk.green("[ ✅ ] Base64 session decoded and saved successfully"));
-      return JSON.parse(decodedData.toString("utf-8"));
+      return sessionData;
+    } else if (config.SESSION_ID.startsWith("Xguru~")) {
+      console.log(chalk.yellow("[ ⏳ ] Downloading MEGA.nz session..."));
+      const megaFileId = config.SESSION_ID.replace("Xguru~", "");
+      const filer = File.fromURL(`https://mega.nz/file/${megaFileId}`);
+      const data = await new Promise((resolve, reject) => {
+        filer.download((err, data) => {
+          if (err) reject(err);
+          else resolve(data);
+        });
+      });
+      fsSync.writeFileSync(credsPath, data);
+      console.log(chalk.green("[ ✅ ] MEGA session downloaded successfully"));
+      return JSON.parse(data.toString());
     } else {
-      throw new Error("Invalid SESSION_ID format or no session provided. Falling to pairing.");
+      throw new Error("Invalid SESSION_ID format. Use 'Xguru~' for base64 or 'Xguru~' for MEGA.nz");
     }
   } catch (error) {
     console.error(chalk.red("❌ Error loading session:", error.message));
-    console.log(chalk.green("Will attempt Pairing Code login."));
+    console.log(chalk.green("Will attempt QR code or pairing code login"));
     return null;
   }
 }
 
-// ==========================================================
-// 🚀 CRITICAL FIX: Non-Interactive Pairing Code Function
-// Reads PAIRING_NUMBER from environment and prints the code to logs.
-// ==========================================================
 async function connectWithPairing(malvin, useMobile) {
   if (useMobile) {
     throw new Error("Cannot use pairing code with mobile API");
   }
-
-  let number = process.env.PAIRING_NUMBER;
-  if (!number) {
-    console.error(chalk.red("❌ ERROR: PAIRING_NUMBER environment variable is not set. Cannot proceed with pairing."));
-    process.exit(1);
-  }
+  // Remove process.stdin.isTTY check for Render environment
   
+  console.log(chalk.bgYellow.black(" ACTION REQUIRED "));
+  console.log(chalk.green("┌" + "─".repeat(46) + "┐"));
+  console.log(chalk.green("│ ") + chalk.bold("Enter WhatsApp number to receive pairing code") + chalk.green(" │"));
+  console.log(chalk.green("└" + "─".repeat(46) + "┘"));
+  
+  // NOTE: This readline logic will fail in Render's non-interactive environment.
+  // The bot needs to be modified to accept the number via an environment variable
+  // or a web endpoint if deployed on Render as a Web Service.
+  // For now, we will assume you will run this locally to generate the code first.
+  
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+  const question = (text) => new Promise((resolve) => rl.question(text, resolve));
+
+  // --- TEMPORARY FIX FOR LOCAL CONSOLE PAIRING ---
+  // We hardcode the number and skip the interactive prompt.
+  let number = "254735403829"; // <--- Set the number directly here (no + sign)
+  // --- END TEMPORARY FIX ---
+
+  // NOTE: Keep the rest of the function as is, starting with:
   number = number.replace(/[^0-9]/g, ""); 
   
   if (!number) {
-    console.error(chalk.red("❌ No valid phone number provided in PAIRING_NUMBER"));
+    console.error(chalk.red("❌ No phone number provided"));
     process.exit(1);
   }
+
 
   try {
     let code = await malvin.requestPairingCode(number);
     code = code?.match(/.{1,4}/g)?.join("-") || code;
-    
-    // --- CLEAR LOG OUTPUT FOR EASY COPYING ---
-    console.log("\n" + chalk.bgGreen.black(" ACTION REQUIRED: PAIRING CODE ") + " Use this code immediately:");
+    console.log("\n" + chalk.bgGreen.black(" SUCCESS ") + " Use this pairing code:");
     console.log(chalk.bold.yellow("┌" + "─".repeat(46) + "┐"));
-    console.log(chalk.bold.yellow("│ ") + chalk.bgWhite.black(`  The Phone Number is: ${number}   `) + chalk.bold.yellow(" │"));
-    console.log(chalk.bold.yellow("│ ") + chalk.bgWhite.black(`  The Pairing Code is: ${code}  `) + chalk.bold.yellow(" │"));
+    console.log(chalk.bold.yellow("│ ") + chalk.bgWhite.black(code) + chalk.bold.yellow(" │"));
     console.log(chalk.bold.yellow("└" + "─".repeat(46) + "┘"));
-    console.log(chalk.yellow("Enter this code in WhatsApp:\n1. Open WhatsApp on your primary phone.\n2. Go to Settings > Linked Devices > Link a Device\n3. Select 'Link with phone number' and enter the number printed above.\n4. Enter the 8-digit code printed above."));
-    
+    console.log(chalk.yellow("Enter this code in WhatsApp:\n1. Open WhatsApp\n2. Go to Settings > Linked Devices\n3. Tap 'Link a Device'\n4. Enter the code"));
   } catch (err) {
     console.error(chalk.red("Error getting pairing code:", err.message));
     process.exit(1);
   }
 }
-// ==========================================================
 
 async function connectToWA() {
   console.log(chalk.cyan("[ 🟠 ] Connecting to WhatsApp ⏳️..."));
 
   const creds = await loadSession();
-  // Check if creds file exists from a previous successful connection
-  const hasExistingCreds = fsSync.existsSync(credsPath);
-
   const { state, saveCreds } = await useMultiFileAuthState(path.join(__dirname, "./sessions"), {
     creds: creds || undefined,
   });
 
   const { version } = await fetchLatestBaileysVersion();
 
-  const pairingCodeEnabled = config.PAIRING_CODE === "true" || process.argv.includes("--pairing-code");
+  const pairingCode = config.PAIRING_CODE === "true" || process.argv.includes("--pairing-code");
   const useMobile = process.argv.includes("--mobile");
 
   malvin = makeWASocket({
     logger: P({ level: "silent" }),
-    // Only print QR if no session ID was loaded AND pairing code is not enabled/used
-    printQRInTerminal: !creds && !pairingCodeEnabled && !hasExistingCreds,
+    printQRInTerminal: !creds && !pairingCode,
     browser: Browsers.macOS("Firefox"),
     syncFullHistory: true,
     auth: state,
@@ -229,8 +242,7 @@ async function connectToWA() {
     getMessage: async () => ({}),
   });
 
-  // Trigger pairing code if enabled AND not already registered (no existing creds)
-  if (pairingCodeEnabled && !state.creds.registered) {
+  if (pairingCode && !state.creds.registered) {
     await connectWithPairing(malvin, useMobile);
   }
 
@@ -250,7 +262,7 @@ async function connectToWA() {
         setTimeout(connectToWA, 5000);
       }
     } else if (connection === "open") {
-      console.log(chalk.green("[ 🤖 ] X-GURU Connected ✅")); // EDITED NAME
+      console.log(chalk.green("[ 🤖 ] Mercedes Connected ✅"));
 
       // Load plugins
       const pluginPath = path.join(__dirname, "plugins");
@@ -271,8 +283,8 @@ try {
   const jid = malvin.decodeJid(malvin.user.id);
   if (!jid) throw new Error("Invalid JID for bot");
 
-  const botname = "X-GURU"; // EDITED NAME
-  const ownername = "GuruTech"; // EDITED NAME
+  const botname = "ᴍᴇʀᴄᴇᴅᴇs";
+  const ownername = "ᴍᴀʀɪsᴇʟ";
   const prefix = getPrefix();
   const username = "betingrich4";
   const mrmalvin = `https://github.com/${username}`;
@@ -382,9 +394,8 @@ try {
       }
     }
 
-    if (qr && !pairingCodeEnabled) {
-      // QR code is suppressed if PAIRING_CODE is true
-      console.log(chalk.red("[ 🟢 ] QR code generated. If pairing code failed, scan this or check PAIRING_NUMBER in config."));
+    if (qr && !pairingCode) {
+      console.log(chalk.red("[ 🟢 ] Scan the QR code to connect or use --pairing-code"));
       qrcode.generate(qr, { small: true });
     }
   });
@@ -540,7 +551,7 @@ BotActivityFilter(malvin);
         let code = budy.slice(2);
         if (!code) {
           reply(`Provide me with a query to run Master!`);
-          l.warn(`No code provided for & command`, { Sender: sender });
+          logger.warn(`No code provided for & command`, { Sender: sender });
           return;
         }
             const { spawn } = require("child_process");
@@ -579,3 +590,5 @@ app.listen(PORT, () => {
     connectToWA();
 });
 // ==========================================================
+
+// Execute the final code block (connectToWA is called inside app.listen)
