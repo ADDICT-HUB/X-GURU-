@@ -270,7 +270,7 @@ async function connectToWA() {
         setTimeout(connectToWA, 5000);
       }
     } else if (connection === "open") {
-      console.log(chalk.green("[ 🤖 ] Mercedes Connected ✅"));
+      console.log(chalk.green("[ 🤖 ] X-GURU Connected ✅"));
 
       // Load plugins
       const pluginPath = path.join(__dirname, "plugins");
@@ -291,7 +291,7 @@ try {
   const jid = malvin.decodeJid(malvin.user.id);
   if (!jid) throw new Error("Invalid JID for bot");
 
-  const botname = "ᴍᴇʀᴄᴇᴅᴇs";
+  const botname = "X-GURU";
   const ownername = "ᴍᴀʀɪsᴇʟ";
   const prefix = getPrefix();
   const username = "betingrich4";
