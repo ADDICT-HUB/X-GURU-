@@ -18,6 +18,12 @@ process.on("unhandledRejection", (reason) => {
 
 // GuruTech
 
+// ----------------------------------------------------------------------
+// CRITICAL FIX: Move PINO (P) and PATH up, as they are needed for 'store'
+const P = require("pino"); 
+const path = require("path");
+// ----------------------------------------------------------------------
+
 const axios = require("axios");
 const config = require("./settings");
 
@@ -46,6 +52,7 @@ const {
 } = require(config.BAILEYS);
 
 // === Added missing store initialization ===
+// FIX: P and path are now correctly defined
 const store = makeInMemoryStore({ logger: P().child({ level: 'silent', stream: 'store' }) });
 store.readFromFile(path.join(__dirname, "./sessions/baileys-store.json"));
 setInterval(() => {
@@ -88,7 +95,7 @@ const {
 const fsSync = require("fs");
 const fs = require("fs").promises;
 const ff = require("fluent-ffmpeg");
-const P = require("pino");
+// const P = require("pino"); // REMOVED: Moved to the top
 const GroupEvents = require("./lib/groupevents");
 const { PresenceControl, BotActivityFilter } = require("./data/presence");
 const qrcode = require("qrcode-terminal");
@@ -100,7 +107,7 @@ const bodyparser = require("body-parser");
 const chalk = require("chalk");
 const os = require("os");
 const Crypto = require("crypto");
-const path = require("path");
+// const path = require("path"); // REMOVED: Moved to the top
 const { getPrefix } = require("./lib/prefix");
 const readline = require("readline");
 const PhoneNumber = require("libphonenumber-js"); // Needed for malvin.getName utility
@@ -185,7 +192,8 @@ if (!fsSync.existsSync(sessionDir)) {
 
 async function loadSession() {
   try {
-    const sessionId = process.env.SESSION_ID || config.SESSION_ID;
+    // FIX: Use process.env for SESSION_ID as configured by dotenv
+    const sessionId = process.env.SESSION_ID || config.SESSION_ID; 
     if (!sessionId) {
       console.log(chalk.red("No SESSION_ID provided - Falling back to QR or pairing code"));
       return null;
@@ -271,7 +279,8 @@ async function connectToWA() {
 
   const { version } = await fetchLatestBaileysVersion();
 
-  const pairingCode = config.PAIRING_CODE === "true" || process.argv.includes("--pairing-code");
+  // FIX: Use process.env for PAIRING_CODE
+  const pairingCode = process.env.PAIRING_CODE === "true" || process.argv.includes("--pairing-code"); 
   const useMobile = process.argv.includes("--mobile");
 
   malvin = makeWASocket({
@@ -410,8 +419,8 @@ try {
 
 } catch (sendError) {
   console.error("[ ✖ ] Error sending connection notice:", sendError.message);
-  // Changed ownerNumber[0] to use config.OWNER_NUMBER as ownerNumber is an array of IDs
-  const ownerJid = `${config.OWNER_NUMBER.replace(/[^0-9]/g, "")}@s.whatsapp.net`;
+  // FIX: Use process.env for OWNER_NUMBER
+  const ownerJid = `${process.env.OWNER_NUMBER.replace(/[^0-9]/g, "")}@s.whatsapp.net`;
   if (ownerJid) {
     await malvin.sendMessage(ownerJid, {
       text: `Failed to send connection notice: ${sendError.message}`,
@@ -459,9 +468,9 @@ for (const channelJid of newsletterChannels) {
       chalk.red(`[ ❌ ] Failed to follow ${channelJid}: ${error.message}`)
     );
 
-    // 🔒 SAFE NOTIFICATION (NO CRASH)
-    if (isValidChatJid(config.OWNER_NUMBER)) { // Use config.OWNER_NUMBER for consistency
-      const ownerJid = `${config.OWNER_NUMBER.replace(/[^0-9]/g, "")}@s.whatsapp.net`;
+    // FIX: Use process.env for OWNER_NUMBER
+    if (isValidChatJid(process.env.OWNER_NUMBER)) { 
+      const ownerJid = `${process.env.OWNER_NUMBER.replace(/[^0-9]/g, "")}@s.whatsapp.net`;
       try {
         await malvin.sendMessage(ownerJid, {
           text: `❌ Failed to follow newsletter:\n${channelJid}\n\nReason: ${error.message}`,
@@ -492,8 +501,9 @@ try {
 } catch (err) {
   console.error(chalk.red("[ ❌ ] Failed to join WhatsApp group:", err.message));
 
-  if (isValidChatJid(config.OWNER_NUMBER)) {
-    const ownerJid = `${config.OWNER_NUMBER.replace(/[^0-9]/g, "")}@s.whatsapp.net`;
+  // FIX: Use process.env for OWNER_NUMBER
+  if (isValidChatJid(process.env.OWNER_NUMBER)) {
+    const ownerJid = `${process.env.OWNER_NUMBER.replace(/[^0-9]/g, "")}@s.whatsapp.net`;
     try {
       await malvin.sendMessage(ownerJid, {
         text: `❌ Failed to join WhatsApp group.\nInvite: ${inviteCode}\nReason: ${err.message}`,
@@ -528,7 +538,8 @@ try {
 
 malvin.ev.on('call', async (calls) => {
   try {
-    if (config.ANTI_CALL !== 'true') return;
+    // FIX: Use process.env for ANTI_CALL
+    if (process.env.ANTI_CALL !== 'true') return; 
 
     for (const call of calls) {
       if (call.status !== 'offer') continue; // Only respond on call offer
@@ -537,8 +548,9 @@ malvin.ev.on('call', async (calls) => {
       const from = call.from;
 
       await malvin.rejectCall(id, from);
-      await malvin.sendMessage(from, {
-        text: config.REJECT_MSG || '*вυѕу ¢αℓℓ ℓαтєя*'
+      // FIX: Use process.env for REJECT_MSG
+      await malvin.sendMessage(from, { 
+        text: process.env.REJECT_MSG || '*вυѕу ¢αℓℓ ℓαтєя*'
       });
       console.log(`Call rejected and message sent to ${from}`);
     }
@@ -575,7 +587,8 @@ BotActivityFilter(malvin);
     const type = getContentType(mek.message);
     
     // Auto-read messages
-    if (config.READ_MESSAGE === 'true') {
+    // FIX: Use process.env for READ_MESSAGE
+    if (process.env.READ_MESSAGE === 'true') {
       await malvin.readMessages([mek.key]);  // Mark message as read
       // console.log(`Marked message from ${mek.key.remoteJid} as read.`);
     }
@@ -585,7 +598,8 @@ BotActivityFilter(malvin);
       mek.message = mek.message.viewOnceMessageV2.message;
     
     // Auto status seen
-    if (mek.key && mek.key.remoteJid === 'status@broadcast' && config.AUTO_STATUS_SEEN === "true"){
+    // FIX: Use process.env for AUTO_STATUS_SEEN
+    if (mek.key && mek.key.remoteJid === 'status@broadcast' && process.env.AUTO_STATUS_SEEN === "true"){
       await malvin.readMessages([mek.key])
     }
 
@@ -596,7 +610,8 @@ BotActivityFilter(malvin);
   ];
   const emojis = ["😂", "🥺", "👍", "☺️", "🥹", "♥️", "🩵"];
 
-  if (mek.key && newsletterJids.includes(mek.key.remoteJid) && config.AUTO_STATUS_REACT === "true") {
+  // FIX: Use process.env for AUTO_STATUS_REACT
+  if (mek.key && newsletterJids.includes(mek.key.remoteJid) && process.env.AUTO_STATUS_REACT === "true") {
     try {
       const serverId = mek.newsletterServerId;
       if (serverId) {
@@ -609,7 +624,8 @@ BotActivityFilter(malvin);
   }	  
 	  
   // Auto status react
-  if (mek.key && mek.key.remoteJid === 'status@broadcast' && config.AUTO_STATUS_REACT === "true"){
+  // FIX: Use process.env for AUTO_STATUS_REACT
+  if (mek.key && mek.key.remoteJid === 'status@broadcast' && process.env.AUTO_STATUS_REACT === "true"){
     const jawadlike = await malvin.decodeJid(malvin.user.id);
     const emojis =  ['❤️', '💸', '😇', '🍂', '💥', '💯', '🔥', '💫', '💎', '💗', '🤍', '🖤', '👀', '🙌', '🙆', '🚩', '🥰', '💐', '👏', '🤎', '✅', '🫀', '🧡', '😶', '🥹', '🌸', '🕊️', '🌷', '⛅', '🌟', '🥺', '🇵🇰', '💜', '💙', '🌝', '🖤', '💚'];
     const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
@@ -622,9 +638,10 @@ BotActivityFilter(malvin);
   }                       
 
   // Auto status reply
-  if (mek.key && mek.key.remoteJid === 'status@broadcast' && config.AUTO_STATUS_REPLY === "true"){
+  // FIX: Use process.env for AUTO_STATUS_REPLY and AUTO_STATUS_MSG
+  if (mek.key && mek.key.remoteJid === 'status@broadcast' && process.env.AUTO_STATUS_REPLY === "true"){
     const user = mek.key.participant;
-    const text = `${config.AUTO_STATUS_MSG}`;
+    const text = `${process.env.AUTO_STATUS_MSG}`;
     await malvin.sendMessage(user, { text: text, react: { text: '💜', key: mek.key } }, { quoted: mek });
   }
 
@@ -638,7 +655,8 @@ BotActivityFilter(malvin);
   const content = JSON.stringify(mek.message);
   const from = mek.key.remoteJid;
   const quoted = type == 'extendedTextMessage' && mek.message.extendedTextMessage.contextInfo != null ? mek.message.extendedTextMessage.contextInfo.quotedMessage || [] : [];
-  const body = (type === 'conversation') ? mek.message.conversation : (type === 'extendedTextMessage') ? mek.message.extendedTextMessage.text : (type == 'imageMessage') && mek.message.imageMessage.caption ? mek.message.imageMessage.caption : (type == 'videoMessage') && mek.message.videoMessage.caption ? mek.message.videoMessage.caption : '';
+  // FIX: Add null/empty string fallback to body definition to prevent crash on chained methods
+  const body = (type === 'conversation') ? mek.message.conversation || '' : (type === 'extendedTextMessage') ? mek.message.extendedTextMessage.text || '' : (type == 'imageMessage') && mek.message.imageMessage.caption ? mek.message.imageMessage.caption : (type == 'videoMessage') && mek.message.videoMessage.caption ? mek.message.videoMessage.caption : '';
   const prefix = getPrefix();
   const isCmd = body.startsWith(prefix);
   var budy = typeof m.text == 'string' ? m.text : false; // Use m.text
@@ -666,9 +684,11 @@ BotActivityFilter(malvin);
     malvin.sendMessage(from, { text: teks }, { quoted: mek })
   };
   
+  // ownerNumbers is redundant if using process.env.OWNER_NUMBER
   const ownerNumbers = ["218942841878", "254740007567", "254790375710"];
   const sudoUsers = JSON.parse(fsSync.readFileSync("./lib/sudo.json", "utf-8") || "[]");
-  const devNumber = config.DEV ? String(config.DEV).replace(/[^0-9]/g, "") : null;
+  // FIX: Use process.env for DEV
+  const devNumber = process.env.DEV ? String(process.env.DEV).replace(/[^0-9]/g, "") : null;
   const creatorJids = [
     ...ownerNumbers,
     ...(devNumber ? [devNumber] : []),
@@ -711,7 +731,8 @@ BotActivityFilter(malvin);
   //==========public react============//
   
 // Auto React for all messages (public and owner)
-if (!isReact && config.AUTO_REACT === 'true') {
+// FIX: Use process.env for AUTO_REACT
+if (!isReact && process.env.AUTO_REACT === 'true') {
     const reactions = [
         '🌼', '❤️', '💐', '🔥', '🏵️', '❄️', '🧊', '🐳', '💥', '🥀', '❤‍🔥', '🥹', '😩', '🫣', 
         '🤭', '👻', '👾', '🫶', '😻', '🙌', '🫂', '🫀', '👩‍🦰', '🧑‍🦰', '👩‍⚕️', '🧑‍⚕️', '🧕', 
@@ -738,9 +759,8 @@ if (!isReact && config.AUTO_REACT === 'true') {
 
   // Owner React
   if (!isReact && senderNumber === botNumber) {
-      // Assuming OWNER_REACT is a config variable, but it's missing in your ENV_PATH defaults.
-      // Assuming a default value of 'true' if the owner is the sender.
-      if (true) { // If you intended to use a config variable, replace 'true' with `config.OWNER_REACT === 'true'`
+      // Assuming OWNER_REACT config is intended here, defaulting to simple check for owner sending a message
+      if (true) { 
           const reactions = [
         '🌼', '❤️', '💐', '🔥', '🏵️', '❄️', '🧊', '🐳', '💥', '🥀', '❤‍🔥', '🥹', '😩', '🫣', '🤭', '👻', '👾', '🫶', '😻', '🙌', '🫂', '🫀', '👩‍🦰', '🧑‍🦰', '👩‍⚕️', '🧑‍⚕️', '🧕', '👩‍🏫', '👨‍💻', '👰‍♀', '🦹🏻‍♀️', '🧟‍♀️', '🧟', '🧞‍♀️', '🧞', '🙅‍♀️', '💁‍♂️', '💁‍♀️', '🙆‍♀️', '🙋‍♀️', '🤷', '🤷‍♀️', '🤦', '🤦‍♀️', '💇‍♀️', '💇', '💃', '🚶‍♀️', '🚶', '🧶', '🧤', '👑', '💍', '👝', '💼', '🎒', '🥽', '🐻 ', '💸', '😇', '🍂', '💥', '💯', '🔥', '💫', '💎', '💗', '🤍', '🖤', '👀', '🙌', '🙆', '🚩', '🥰', '💐', '😎', '🤎', '✅', '🫀', '🧡', '😁', '😄', '🌸', '🕊️', '🌷', '⛅', '🌟', '🗿', '🇵🇰', '💜', '💙', '🌝', '🖤', '🎎', '🎏', '🎐', '⚽', '🧣', '🌿', '⛈️', '🌦️', '🌚', '🌝', '🙈', '🙉', '🦖', '🐤', '🎗️', '🥇', '👾', '🔫', '🐝', '🦋', '🍓', '🍫', '🍭', '🧁', '🧃', '🍿', '🍻', '🛬', '🫀', '🫠', '🐍', '🥀', '🌸', '🏵️', '🌻', '🍂', '🍁', '🍄', '🌾', '🌿', '🌱', '🍀', '🧋', '💒', '🏩', '🏗️', '🏰', '🏪', '🏟️', '🎗️', '🥇', '⛳', '📟', '🏮', '📍', '🔮', '🧿', '♻️', '⛵', '🚍', '🚔', '🛳️', '🚆', '🚤', '🚕', '🛺', '🚝', '🚈', '🏎️', '🏍️', '🛵', '🥂', '🍾', '🍧', '🐣', '🐥', '🦄', '🐯', '🐦', '🐬', '🐋', '🦆', '💈', '⛲', '⛩️', '🎈', '🎋', '🪀', '🧩', '👾', '💸', '💎', '🧮', '👒', '🧢', '🎀', '🧸', '👑', '〽️', '😳', '💀', '☠️', '👻', '🔥', '♥️', '👀', '🐼', '🐭', '🐣', '🪿', '🦆', '🦊', '🦋', '🦄', '🪼', '🐋', '🐳', '🦈', '🐍', '🕊️', '🦦', '🦚', '🌱', '🍃', '🎍', '🌿', '☘️', '🍀', '🍁', '🪺', '🍄', '🍄‍🟫', '🪸', '🪨', '🌺', '🪷', '🪻', '🥀', '🌹', '🌷', '💐', '🌾', '🌸', '🌼', '🌻', '🌝', '🌚', '🌕', '🌎', '💫', '🔥', '☃️', '❄️', '🌨️', '🫧', '🍟', '🍫', '🧃', '🧊', '🪀', '🤿', '🏆', '🥇', '🥈', '🥉', '🎗️', '🤹', '🤹‍♀️', '🎧', '🎤', '🥁', '🧩', '🎯', '🚀', '🚁', '🗿', '🎙️', '⌛', '⏳', '💸', '💎', '⚙️', '⛓️', '🔪', '🧸', '🎀', '🪄', '🎈', '🎁', '🎉', '🏮', '🪩', '📩', '💌', '📤', '📦', '📊', '📈', '📑', '📉', '📂', '🔖', '🧷', '📌', '📝', '🔏', '🔐', '🩷', '❤️', '🧡', '💛', '💚', '🩵', '💙', '💜', '🖤', '🩶', '🤍', '🤎', '❤‍🔥', '❤‍🩹', '💗', '💖', '💘', '💝', '❌', '✅', '🔰', '〽️', '🌐', '🌀', '⤴️', '⤵️', '🔴', '🟢', '🟡', '🟠', '🔵', '🟣', '⚫', '⚪', '🟤', '🔇', '🔊', '📢', '🔕', '♥️', '🕐', '🚩', '🇵🇰', '🧳', '🌉', '🌁', '🛤️', '🛣️', '🏚️', '🏠', '🏡', '🧀', '🍥', '🍮', '🍰', '🍦', '🍨', '🍧', '🥠', '🍡', '🧂', '🍯', '🍪', '🍩', '🍭', '🥮', '🍡'
     ];
@@ -753,18 +773,20 @@ if (!isReact && config.AUTO_REACT === 'true') {
 // custum react settings        
                         
 // Custom React for all messages (public and owner)
-if (!isReact && config.CUSTOM_REACT === 'true') {
+// FIX: Use process.env for CUSTOM_REACT and CUSTOM_REACT_EMOJIS
+if (!isReact && process.env.CUSTOM_REACT === 'true') {
     // Use custom emojis from the configuration (fallback to default if not set)
-    const reactions = (config.CUSTOM_REACT_EMOJIS || '🥲,😂,👍🏻,🙂,😔').split(',');
+    const reactions = (process.env.CUSTOM_REACT_EMOJIS || '🥲,😂,👍🏻,🙂,😔').split(',');
     const randomReaction = reactions[Math.floor(Math.random() * reactions.length)];
     m.react(randomReaction);
 }
 
 
 if (!isReact && senderNumber === botNumber) {
-            if (config.HEART_REACT === 'true') {
-                // Use custom emojis from the configuration
-                const reactions = (config.CUSTOM_REACT_EMOJIS || '❤️,🧡,💛,💚,💚').split(',');
+            // FIX: Use process.env for HEART_REACT
+            if (process.env.HEART_REACT === 'true') {
+                // FIX: Use process.env for CUSTOM_REACT_EMOJIS
+                const reactions = (process.env.CUSTOM_REACT_EMOJIS || '❤️,🧡,💛,💚,💚').split(',');
                 const randomReaction = reactions[Math.floor(Math.random() * reactions.length)];
                 m.react(randomReaction);
             }
@@ -782,20 +804,24 @@ if (!isReact && senderNumber === botNumber) {
 
       // Owner check
       const ownerFile = JSON.parse(fsSync.readFileSync("./lib/sudo.json", "utf-8"));
-      const ownerNumberFormatted = `${config.OWNER_NUMBER.replace(/[^0-9]/g, "")}@s.whatsapp.net`;
+      // FIX: Use process.env for OWNER_NUMBER
+      const ownerNumberFormatted = `${process.env.OWNER_NUMBER.replace(/[^0-9]/g, "")}@s.whatsapp.net`;
       const isFileOwner = ownerFile.includes(sender);
       const isRealOwner = sender === ownerNumberFormatted || isMe || isFileOwner || creatorJids.includes(sender); // Use creatorJids for consistency
 
       // Mode restrictions
-      if (!isRealOwner && config.MODE === "private") {
+      // FIX: Use process.env for MODE
+      if (!isRealOwner && process.env.MODE === "private") {
         console.log(chalk.red(`[ 🚫 ] Ignored command in private mode from ${sender}`));
         return;
       }
-      if (!isRealOwner && isGroup && config.MODE === "inbox") {
+      // FIX: Use process.env for MODE
+      if (!isRealOwner && isGroup && process.env.MODE === "inbox") {
         console.log(chalk.red(`[ 🚫 ] Ignored command in group ${groupName} from ${sender} in inbox mode`));
         return;
       }
-      if (!isRealOwner && !isGroup && config.MODE === "groups") {
+      // FIX: Use process.env for MODE
+      if (!isRealOwner && !isGroup && process.env.MODE === "groups") {
         console.log(chalk.red(`[ 🚫 ] Ignored command in private chat from ${sender} in groups mode`));
         return;
       }
@@ -1029,7 +1055,8 @@ if (!isReact && senderNumber === botNumber) {
           ...options
       }, { quoted, ...options })
       // Unlink only if a temporary file was created (i.e., if save was true in getFile)
-      if (types.filename) return fs.promises.unlink(pathFile) 
+      // FIX: Await unlink to ensure cleanup runs after send.
+      if (types.filename) await fs.promises.unlink(pathFile) 
       return 
     }
     //=====================================================
@@ -1069,7 +1096,8 @@ if (!isReact && senderNumber === botNumber) {
           ...options
       }, { quoted, ...options })
       // Unlink only if a temporary file was created (i.e., if save was true in getFile)
-      if (types.filename) return fs.promises.unlink(pathFile) 
+      // FIX: Await unlink to ensure cleanup runs after send.
+      if (types.filename) await fs.promises.unlink(pathFile) 
       return 
     }
     /**
@@ -1196,7 +1224,8 @@ if (!isReact && senderNumber === botNumber) {
     */
     //=====================================================
     malvin.getName = (jid, withoutContact = false) => {
-            id = malvin.decodeJid(jid);
+            // FIX: Declare 'id' locally
+            const id = malvin.decodeJid(jid); 
 
             withoutContact = malvin.withoutContact || withoutContact;
 
@@ -1241,14 +1270,11 @@ if (!isReact && senderNumber === botNumber) {
 
         // Vcard Functionality
         malvin.sendContact = async (jid, kon, quoted = '', opts = {}) => {
-            // NOTE: Global variables like global.OwnerName, global.email, global.github, global.location
-            // are not defined in this script. They will cause ReferenceError if used.
-            // Replacing them with string placeholders for a working script.
-            
-            const OwnerName = "GuruTech"; // Placeholder
-            const email = "support@gurutech.com"; // Placeholder
-            const github = "ADDICT-HUB/X-GURU"; // Placeholder
-            const location = "Earth"; // Placeholder
+            // Placeholder variables used to prevent ReferenceError since they are not defined globally
+            const OwnerName = "GuruTech"; 
+            const email = "support@gurutech.com"; 
+            const github = "ADDICT-HUB/X-GURU"; 
+            const location = "Earth"; 
 
             let list = [];
             for (let i of kon) {
