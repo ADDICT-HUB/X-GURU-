@@ -1,74 +1,65 @@
 const config = require('../settings');
 const { malvin } = require('../malvin');
 const moment = require('moment-timezone');
+const os = require('os');
 
-// Bot start time
 const botStartTime = process.hrtime.bigint();
 
 malvin({
     pattern: 'ping',
-    alias: ['speed', 'pong','p'],
-    desc: 'Check bot\'s response time and status',
+    alias: ['speed', 'pong', 'p'],
+    desc: 'Check bot\'s real-time response and status',
     category: 'main',
     react: '⚡',
     filename: __filename
-}, async (malvin, mek, m, { from, sender, reply }) => {
+}, async (malvin, mek, m, { from, sender, reply, pushname }) => {
     try {
-        const prefix = config.PREFIX || '.';
         const ownerName = config.OWNER_NAME || 'GuruTech';
         const botName = config.BOT_NAME || 'X-GURU';
-        const repoLink = config.REPO || 'https://github.com/ADDICT-HUB/X-GURU';
         const timezone = config.TIMEZONE || 'Africa/Harare';
+        const newsletterJid = config.NEWSLETTER_JID || '120363421164015033@newsletter';
 
-        // Capture start time for response
-        const start = process.hrtime.bigint();
-
-        // Current time & date
-        const time = moment().tz(timezone).format('HH:mm:ss');
-        const date = moment().tz(timezone).format('DD/MM/YYYY');
+        // Start time
+        const startTime = process.hrtime.bigint();
 
         // Uptime
         const uptimeSeconds = Number(process.hrtime.bigint() - botStartTime) / 1e9;
         const uptime = moment.duration(uptimeSeconds, 'seconds').humanize();
+
+        // Current time & date
+        const currentTime = moment().tz(timezone).format('HH:mm:ss');
+        const currentDate = moment().tz(timezone).format('dddd, MMMM Do YYYY');
 
         // Memory usage
         const memory = process.memoryUsage();
         const memoryUsage = `${(memory.heapUsed / 1024 / 1024).toFixed(2)}/${(memory.heapTotal / 1024 / 1024).toFixed(2)} MB`;
 
         // Response time
-        const responseTime = Number(process.hrtime.bigint() - start) / 1e9;
+        const responseTime = Number(process.hrtime.bigint() - startTime) / 1e9;
 
-        // Status text based on response
-        let statusText = '';
+        // Status text
+        let statusText;
         if (responseTime < 0.3) statusText = 'Super Fast';
         else if (responseTime < 0.6) statusText = 'Fast';
-        else if (responseTime < 1.0) statusText = 'Medium';
+        else if (responseTime < 1) statusText = 'Medium';
         else statusText = 'Slow';
 
-        // Loading bar simulation (text only, single message)
-        const loadingBar = '▰▰▰▱▱▱▱▱▱▱';
-
-        // Compose ping message
+        // Compose message
         const pingMsg = `
-┌───────────────
-│ ${botName} Status
-├───────────────
+╭───〔 ${botName} Status 〕───
+│ User         : ${pushname || 'User'}
+│ Owner        : ${ownerName}
 │ Status       : ${statusText}
-│ Response Time: ${responseTime.toFixed(2)}s
-│ Time         : ${time} (${timezone})
-│ Date         : ${date}
+│ Response     : ${responseTime.toFixed(2)}s
+│ Time         : ${currentTime} (${timezone})
+│ Date         : ${currentDate}
 │ Uptime       : ${uptime}
 │ Memory Usage : ${memoryUsage}
-│ Owner        : ${ownerName}
-│ Bot Name     : ${botName}
-│ Repo         : ${repoLink}
-├───────────────
-│ Loading      : ${loadingBar}
-└───────────────
-> Report any issues to the developer
-`.trim();
+╰───────────────────────
+> Everything is live and real-time!
+        `.trim();
 
-        // Send single message only
+        // Send message with newsletter design
         await malvin.sendMessage(from, {
             text: pingMsg,
             contextInfo: {
@@ -76,15 +67,15 @@ malvin({
                 forwardingScore: 999,
                 isForwarded: true,
                 forwardedNewsletterMessageInfo: {
-                    newsletterJid: '120363421164015033@newsletter',
+                    newsletterJid,
                     newsletterName: ownerName,
                     serverMessageId: 143
                 }
             }
         }, { quoted: mek });
 
-    } catch (e) {
-        console.error('❌ Ping command error:', e);
-        await reply(`❌ Error: ${e.message || 'Failed to process ping command'}`);
+    } catch (err) {
+        console.error('❌ Ping command error:', err);
+        await reply(`❌ Error: ${err.message || 'Failed to process ping command'}`);
     }
 });
