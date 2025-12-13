@@ -5,7 +5,7 @@ const { runtime } = require('../lib/functions');
 const os = require('os');
 const { getPrefix } = require('../lib/prefix');
 
-// Fonction pour styliser les majuscules comme ʜɪ
+// Stylize uppercase letters
 function toUpperStylized(str) {
   const stylized = {
     A: 'ᴀ', B: 'ʙ', C: 'ᴄ', D: 'ᴅ', E: 'ᴇ', F: 'ғ', G: 'ɢ', H: 'ʜ',
@@ -16,10 +16,10 @@ function toUpperStylized(str) {
   return str.split('').map(c => stylized[c.toUpperCase()] || c).join('');
 }
 
-// Normalisation des catégories
+// Normalize category names
 const normalize = (str) => str.toLowerCase().replace(/\s+menu$/, '').trim();
 
-// Emojis par catégorie normalisée
+// Emoji map for categories
 const emojiByCategory = {
   ai: '🤖',
   anime: '🍥',
@@ -64,9 +64,6 @@ malvin({
   try {
     const prefix = getPrefix();
     const timezone = config.TIMEZONE || 'Africa/Nairobi';
-    const time = moment().tz(timezone).format('HH:mm:ss');
-    const date = moment().tz(timezone).format('dddd, DD MMMM YYYY');
-
     const uptime = () => {
       let sec = process.uptime();
       let h = Math.floor(sec / 3600);
@@ -75,19 +72,21 @@ malvin({
       return `${h}h ${m}m ${s}s`;
     };
 
+    // ================= ADVANCED BOX MENU =================
     let menu = `
-*┏────〘 ᴍᴇʀᴄᴇᴅᴇs 〙───⊷*
-*┃ ᴜꜱᴇʀ : @${sender.split("@")[0]}*
-*┃ ʀᴜɴᴛɪᴍᴇ : ${uptime()}*
-*┃ ᴍᴏᴅᴇ : ${config.MODE}*
-*┃ ᴘʀᴇғɪx : 「 ${config.PREFIX}」* 
-*┃ ᴏᴡɴᴇʀ : ${config.OWNER_NAME}*
-*┃ ᴘʟᴜɢɪɴꜱ : 『 ${commands.length} 』*
-*┃ ᴅᴇᴠ : ᴍᴀʀɪsᴇʟ*
-*┃ ᴠᴇʀꜱɪᴏɴ : 2.0.0*
-*┗──────────────⊷*`;
+╔══════════════════════╗
+║ 🤖  𝙓-𝙂𝙐𝙍𝙐  BOT MENU
+║ 👑 Owner : GuruTech
+║ 👤 User  : @${sender.split("@")[0]}
+║ ⏱ Runtime: ${uptime()}
+║ ⚙ Mode   : ${config.MODE}
+║ 🔑 Prefix : ${config.PREFIX}
+║ 🧩 Plugins: ${commands.length}
+║ 🚀 Version: 2.0.0
+╚══════════════════════╝
+`;
 
-    // Group commands by category (improved logic)
+    // Group commands by category
     const categories = {};
     for (const cmd of commands) {
       if (cmd.category && !cmd.dontAdd && cmd.pattern) {
@@ -97,17 +96,24 @@ malvin({
       }
     }
 
-    // Add sorted categories with stylized text
+    // Add categories with advanced box style
     for (const cat of Object.keys(categories).sort()) {
-      const emoji = emojiByCategory[cat] || '💫';
-      menu += `\n\n*┏─『 ${emoji} ${toUpperStylized(cat)} ${toUpperStylized('Menu')} 』──⊷*\n`;
+      const emoji = emojiByCategory[cat] || '✨';
+      menu += `
+╔─❖ ${emoji} ${toUpperStylized(cat)} ❖─╗
+`;
       for (const cmd of categories[cat].sort()) {
-        menu += `*│ ${prefix}${cmd}*\n`;
+        menu += `║ ▸ ${prefix}${cmd}\n`;
       }
-      menu += `*┗──────────────⊷*`;
+      menu += `╚════════════════╝`;
     }
 
-    menu += `\n\n> ${config.DESCRIPTION || toUpperStylized('Explore the bot commands!')}`;
+    menu += `
+╔══════════════════════╗
+║ ✨ Powered by X-GURU
+║ ⚡ Fast • Secure • Reliable
+╚══════════════════════╝
+`;
 
     // Context info for image message
     const imageContextInfo = {
@@ -115,8 +121,8 @@ malvin({
       forwardingScore: 999,
       isForwarded: true,
       forwardedNewsletterMessageInfo: {
-        newsletterJid: config.NEWSLETTER_JID || '120363299029326322@newsletter',
-        newsletterName: config.OWNER_NAME || toUpperStylized('marisel'),
+        newsletterJid: config.NEWSLETTER_JID || '120363421164015033@newsletter',
+        newsletterName: 'GuruTech',
         serverMessageId: 143
       }
     };
@@ -125,7 +131,7 @@ malvin({
     await malvin.sendMessage(
       from,
       {
-        image: { url: config.MENU_IMAGE_URL || 'https://url.bwmxmd.online/Adams.zjrmnw18.jpeg' },
+        image: { url: config.MENU_IMAGE_URL || 'https://files.catbox.moe/75baia.jpg' },
         caption: menu,
         contextInfo: imageContextInfo
       },
@@ -146,7 +152,7 @@ malvin({
             forwardingScore: 999,
             isForwarded: true,
             forwardedNewsletterMessageInfo: {
-              newsletterName: config.OWNER_NAME || toUpperStylized('marisel'),
+              newsletterName: 'GuruTech',
               serverMessageId: 143
             }
           }
@@ -157,6 +163,6 @@ malvin({
 
   } catch (e) {
     console.error('Menu Error:', e.message);
-    await reply(`❌ ${toUpperStylized('Error')}: Failed to show menu. Try again.\n${toUpperStylized('Details')}: ${e.message}`);
+    await reply(`❌ ${toUpperStylized('Error')}: Failed to show menu.\n${toUpperStylized('Details')}: ${e.message}`);
   }
 });
