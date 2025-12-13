@@ -1,10 +1,8 @@
 const { malvin } = require("../malvin");
 const config = require("../settings");
-const os = require("os");
-const { runtime } = require('../lib/functions');
 const moment = require("moment");
 
-const ALIVE_IMG = "hhttps://url.bwmxmd.online/Adams.xm472dqv.jpeg";
+const ALIVE_IMG = "https://files.catbox.moe/75baia.jpg";
 
 malvin({
     pattern: "alive2",
@@ -19,8 +17,14 @@ malvin({
         const currentTime = now.format("HH:mm:ss");
         const currentDate = now.format("dddd, MMMM Do YYYY");
 
-        const uptime = runtime(process.uptime());
+        // Uptime formatting
+        const uptimeSeconds = process.uptime();
+        const hours = Math.floor(uptimeSeconds / 3600);
+        const minutes = Math.floor((uptimeSeconds % 3600) / 60);
+        const seconds = Math.floor(uptimeSeconds % 60);
+        const uptime = `${hours}h ${minutes}m ${seconds}s`;
 
+        // Tiny / stylish caps
         const toTinyCap = (text) =>
             text.split("").map(char => {
                 const tiny = {
@@ -32,15 +36,23 @@ malvin({
                 return tiny[char.toLowerCase()] || char;
             }).join("");
 
+        // Stylish box menu
         const msg = `
-╭──❖ 「 *${toTinyCap("Mercedes Status")}* 」 ❖─
-│ 👤 ʜɪ: *${pushname}*
-│ 🕓 ᴛɪᴍᴇ: *${currentTime}*
-│ 📆 ᴅᴀᴛᴇ: *${currentDate}*
-│ 🧭 ᴜᴘᴛɪᴍᴇ: *${uptime}*
-│ ⚙️ ᴍᴏᴅᴇ: *${config.MODE}*
-│ 🔰 ᴠᴇʀsɪᴏɴ: *${config.version}*
-╰─────────❖
+╔═══════════════════════
+║  『 ${toTinyCap("X-GURU Status")} 』
+╠═══════════════════════
+║ 👤 User      : ${pushname}
+║ 🕓 Time      : ${currentTime}
+║ 📆 Date      : ${currentDate}
+║ 🧭 Uptime    : ${uptime}
+║ ⚙️ Mode      : ${config.MODE}
+║ 🔰 Version   : ${config.version}
+║ 💻 Owner     : GuruTech
+║ 🤖 Bot Name  : X-GURU
+╠═══════════════════════
+║ 🌟 Keep this session safe
+║ 🔗 Newsletter info below
+╚═══════════════════════
         `.trim();
 
         await malvin.sendMessage(from, {
@@ -51,8 +63,8 @@ malvin({
                 forwardingScore: 999,
                 isForwarded: true,
                 forwardedNewsletterMessageInfo: {
-                    newsletterJid: '120363299029326322@newsletter',
-                    newsletterName: '𝖒𝖆𝖗𝖎𝖘𝖊𝖑',
+                    newsletterJid: '120363421164015033@newsletter', // your previous newsletter
+                    newsletterName: 'GuruTech',
                     serverMessageId: 143
                 }
             }
