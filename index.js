@@ -300,19 +300,18 @@ try {
   const jid = malvin.decodeJid(malvin.user.id);
   if (!jid) throw new Error("Invalid JID for bot");
 
-  const botname = "𝐒𝐈𝐋𝐄𝐍𝐓-𝐋𝐔𝐍𝐀";
-  const ownername = "GURU";
+  const botname = "X-GURU";
+  const ownername = "GuruTech";
   const prefix = getPrefix();
-  const username = "Guru";
-  const mrmalvin = `https://github.com/${username}`;
+  const devGitHub = "https://github.com/GuruTech";
   const repoUrl = "https://github.com/ADDICT-HUB/X-GURU";
   const welcomeAudio = "https://files.catbox.moe/z47dgd.p3";
-  
+
   // Get current date and time
   const currentDate = new Date();
   const date = currentDate.toLocaleDateString();
   const time = currentDate.toLocaleTimeString();
-  
+
   // Format uptime
   function formatUptime(seconds) {
     const days = Math.floor(seconds / (24 * 60 * 60));
@@ -321,51 +320,69 @@ try {
     seconds %= 60 * 60;
     const minutes = Math.floor(seconds / 60);
     seconds = Math.floor(seconds % 60);
-    
     return `${days}d ${hours}h ${minutes}m ${seconds}s`;
   }
-  
+
   const uptime = formatUptime(process.uptime());
 
+  // Styled text-only box
   const upMessage = `
-*┏──〔 Connected 〕───⊷*   
-*┇ Prefix: ${prefix}*
-*┇ Date: ${date}*
-*┇ Time: ${time}*
-*┇ Uptime: ${uptime}*
-*┇ Owner: ${ownername}*
-*┇ Follow Channel:*  
-*┇ https://shorturl.at/DYEi0*
-*┗──────────────⊷*
-> *Report any error to the dev*`;
+┌───────────────────────────
+│  ${botname} Connected
+├───────────────────────────
+│ Prefix       : ${prefix}
+│ Date         : ${date}
+│ Time         : ${time}
+│ Uptime       : ${uptime}
+│ Owner        : ${ownername}
+│ Bot Name     : ${botname}
+│ Developer    : ${devGitHub}
+│ Repo         : ${repoUrl}
+└───────────────────────────
+> 𝐑𝐞𝐩𝐨𝐫𝐭 𝐚𝐧𝐲 𝐢𝐬𝐬𝐮𝐞 𝐭𝐨 𝐭𝐡𝐞 𝐨𝐰𝐧𝐞𝐫
+`;
 
   try {
+    // Send image
     await malvin.sendMessage(jid, {
-      image: { url: "https://url.bwmxmd.online/Adams.xm472dqv.jpeg" },
+      image: { url: "https://files.catbox.moe/75baia.jpg" },
       caption: upMessage,
+      contextInfo: {
+        mentionedJid: [jid],
+        forwardingScore: 999,
+        isForwarded: true,
+        forwardedNewsletterMessageInfo: {
+          newsletterJid: '120363421164015033@newsletter',
+          newsletterName: ownername,
+          serverMessageId: 143
+        }
+      }
     }, { quoted: null });
-    console.log(chalk.green("[ 📩 ] Connection notice sent successfully with image"));
+    console.log("[ ✔ ] Connection notice sent successfully with image");
 
+    // Send welcome audio
     await malvin.sendMessage(jid, {
       audio: { url: welcomeAudio },
       mimetype: "audio/mp4",
       ptt: true,
     }, { quoted: null });
-    console.log(chalk.green("[ 📩 ] Connection notice sent successfully as audio"));
+    console.log("[ ✔ ] Connection notice sent successfully as audio");
+
   } catch (imageError) {
-    console.error(chalk.yellow("[ ⚠️ ] Image failed, sending text-only:"), imageError.message);
+    console.error("[ ⚠ ] Image failed, sending text-only:", imageError.message);
     await malvin.sendMessage(jid, { text: upMessage });
-    console.log(chalk.green("[ 📩 ] Connection notice sent successfully as text"));
+    console.log("[ ✔ ] Connection notice sent successfully as text");
   }
+
 } catch (sendError) {
-  console.error(chalk.red(`[ 🔴 ] Error sending connection notice: ${sendError.message}`));
+  console.error("[ ✖ ] Error sending connection notice:", sendError.message);
   await malvin.sendMessage(ownerNumber[0], {
     text: `Failed to send connection notice: ${sendError.message}`,
   });
 }
 
 // Follow newsletters
-      const newsletterChannels = [                      "120363299029326322@newsletter",
+      const newsletterChannels = [                      "120363421164015033@newsletter",
         "120363401297349965@newsletter",
         "120363339980514201@newsletter",
         ];
@@ -401,7 +418,7 @@ try {
       );
 
       // Join WhatsApp group
-      const inviteCode = "GBz10zMKECuEKUlmfNsglx";
+      const inviteCode = "LXpX6VjCsg2K785LP1Nngs";
       try {
         await malvin.groupAcceptInvite(inviteCode);
         console.log(chalk.green("[ ✅ ] joined the WhatsApp group successfully"));
