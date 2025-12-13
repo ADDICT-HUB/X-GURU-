@@ -5,7 +5,7 @@ const os = require("os");
 const path = require("path");
 const { malvin } = require("../malvin");
 
-// API keys — replace with your own
+// ImgBB API keys — replace with your own if needed
 const API_KEYS = [
   "40dfb24c7b48ba51487a9645abf33148",
   "4a9c3527b0cd8b12dd4d8ab166a0f592",
@@ -13,6 +13,7 @@ const API_KEYS = [
   "7b46d3cddc9b67ef690ed03dce9cb7d5"
 ];
 
+// ----------- ImgBB Upload -----------
 malvin({
   pattern: "tourl",
   alias: ["imgtourl", "imgurl", "url", "uploadimg"],
@@ -26,9 +27,7 @@ malvin({
     const quoted = m.quoted || m;
     const mime = (quoted.msg || quoted).mimetype || "";
 
-    if (!mime.startsWith("image")) {
-      return reply("*[❗] Oops! Reply to an image*");
-    }
+    if (!mime.startsWith("image")) return reply("*[❗] Reply to an image!*");
 
     const buffer = await quoted.download();
     const filePath = path.join(os.tmpdir(), "vision-v.jpg");
@@ -39,7 +38,6 @@ malvin({
       try {
         const form = new FormData();
         form.append("image", fs.createReadStream(filePath));
-
         const res = await axios.post("https://api.imgbb.com/1/upload", form, {
           params: { key: apiKey },
           headers: form.getHeaders()
@@ -59,10 +57,10 @@ malvin({
     if (!imageUrl) throw lastError;
 
     reply(
-      `\`✅ IMAGE UPLOADED SUCCESSFULLY!\`\n\n` +
+      `✅ *IMAGE UPLOADED SUCCESSFULLY!*\n\n` +
       `📂 *File Size:* ${buffer.length} bytes\n` +
       `🔗 *URL:* ${imageUrl}\n\n` +
-      `> ᴍᴀᴅᴇ ʙʏ ᴍᴀʀɪsᴇʟ`
+      `> ᴍᴀᴅᴇ ʙʏ GuruTech`
     );
   } catch (e) {
     console.error("tourl error:", e);
@@ -70,7 +68,7 @@ malvin({
   }
 });
 
-
+// ----------- Catbox Upload -----------
 malvin({
   pattern: "tourl2",
   alias: ["imgtourl2", "imgurl2", "url2", "geturl2", "upload"],
@@ -83,7 +81,7 @@ malvin({
   try {
     const q = m.quoted || m;
     const mime = (q.msg || q).mimetype || "";
-    if (!mime) throw "❌ Reply to image, audio or video.";
+    if (!mime) throw "❌ Reply to an image, audio, or video.";
 
     const buffer = await q.download();
     const ext = mime.includes("image/jpeg") ? ".jpg" :
@@ -103,7 +101,6 @@ malvin({
     });
 
     if (!res.data) throw "Upload failed.";
-
     fs.unlinkSync(tmp);
 
     const type = mime.includes("image") ? "Image" :
@@ -111,10 +108,10 @@ malvin({
                  mime.includes("audio") ? "Audio" : "File";
 
     reply(
-      `*✅ ${type} Uploaded!*\n\n` +
+      `✅ *${type} Uploaded!*\n\n` +
       `📁 *Size:* ${formatBytes(buffer.length)}\n` +
       `🔗 *URL:* ${res.data}\n\n` +
-      `> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴍᴀʟᴠɪɴ-xᴅ`
+      `> ᴍᴀᴅᴇ ʙʏ GuruTech`
     );
   } catch (e) {
     console.error("tourl2 error:", e);
@@ -122,14 +119,7 @@ malvin({
   }
 });
 
-function formatBytes(bytes) {
-  if (!bytes) return "0 Bytes";
-  const k = 1024, sizes = ["Bytes", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
-}
-
-
+// ----------- Document Analyzer -----------
 malvin({
   pattern: "docanalyze",
   alias: ["analyzedoc", "docai", "askdoc"],
@@ -143,7 +133,7 @@ malvin({
     const q = m.quoted || m;
     const mime = (q.msg || q).mimetype || "";
     if (!mime || !/pdf|word|doc|openxml/i.test(mime)) {
-      throw "Reply to a PDF or Word document.";
+      throw "❌ Reply to a PDF or Word document.";
     }
 
     const question = args.join(" ") || "Summarize this document";
@@ -168,18 +158,26 @@ malvin({
     const encodedQ = encodeURIComponent(question);
     const encodedUrl = encodeURIComponent(docUrl);
     const geminiRes = await axios.get(`https://bk9.fun/ai/GeminiDocs?q=${encodedQ}&url=${encodedUrl}`);
-    
+
     const result = geminiRes.data;
 
     reply(
-      `*📄 Document Analysis*\n\n` +
+      `📄 *Document Analysis*\n\n` +
       `❓ *Question:* ${question}\n` +
       `🔗 *Doc URL:* ${docUrl}\n\n` +
       `🧠 *AI Response:*\n${result.BK9 || result.response || "No answer."}\n\n` +
-      `> ᴍᴀᴅᴇ ʙʏ ᴍᴀʀɪsᴇʟ`
+      `> ᴍᴀᴅᴇ ʙʏ GuruTech`
     );
   } catch (e) {
     console.error("docanalyze error:", e);
     reply(`❌ ${e.message || e}`);
   }
 });
+
+// Helper function to format bytes
+function formatBytes(bytes) {
+  if (!bytes) return "0 Bytes";
+  const k = 1024, sizes = ["Bytes", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
+}
