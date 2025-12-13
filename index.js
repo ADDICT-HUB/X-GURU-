@@ -75,8 +75,6 @@ const StickersTypes = require("wa-sticker-formatter");
 const util = require("util");
 const { sms, downloadMediaMessage, AntiDelete } = require("./lib");
 const FileType = require("file-type");
-const { File } = require("megajs");
-const { fromBuffer } = require("file-type");
 const bodyparser = require("body-parser");
 const chalk = require("chalk");
 const os = require("os");
@@ -87,12 +85,54 @@ const readline = require("readline");
 
 const ownerNumber = ["218942841878"];
 
+// ================= ENV AUTO-CREATION =================
+const ENV_PATH = path.join(__dirname, ".env");
+function ensureEnv(envPath) {
+  try {
+    const defaults = [
+      "SESSION_ID=",
+      "PAIRING_CODE=false",
+      "MODE=public",
+      "OWNER_NUMBER=254740007567",
+      "ANTI_CALL=false",
+      "READ_MESSAGE=false",
+      "AUTO_STATUS_SEEN=false",
+      "AUTO_STATUS_REACT=false",
+      "AUTO_STATUS_REPLY=false",
+      "AUTO_STATUS_MSG=Hello 👋",
+      "AUTO_REACT=false",
+      "CUSTOM_REACT=false",
+      "CUSTOM_REACT_EMOJIS=🥲,😂,👍🏻,🙂,😔",
+      "HEART_REACT=false",
+      "DEV="
+    ];
+    if (!fsSync.existsSync(envPath)) {
+      fsSync.writeFileSync(envPath, defaults.join("\n") + "\n");
+      console.log(chalk.green(`[ ✅ ] .env created at ${envPath}`));
+      console.log(chalk.yellow("Set SESSION_ID to Xguru~<base64 json creds> for seamless login."));
+      return;
+    }
+    const existing = fsSync.readFileSync(envPath, "utf8");
+    const existingKeys = new Set(
+      existing.split("\n").map(l => l.trim()).filter(Boolean).map(l => l.split("=")[0])
+    );
+    const missing = defaults.filter(d => !existingKeys.has(d.split("=")[0]));
+    if (missing.length) {
+      fsSync.appendFileSync(envPath, missing.join("\n") + "\n");
+      console.log(chalk.green("[ ✅ ] .env updated with missing defaults"));
+    }
+  } catch (e) {
+    console.error(chalk.red("[ ❌ ] Failed to ensure .env:", e.message));
+  }
+}
+ensureEnv(ENV_PATH);
+require("dotenv").config({ path: ENV_PATH });
+
 // Temp directory management
 const tempDir = path.join(os.tmpdir(), "cache-temp");
 if (!fsSync.existsSync(tempDir)) {
   fsSync.mkdirSync(tempDir);
 }
-
 const clearTempDir = () => {
   fsSync.readdir(tempDir, (err, files) => {
     if (err) {
@@ -115,53 +155,37 @@ const port = process.env.PORT || 7860;
 
 // Session authentication
 let malvin;
-
 const sessionDir = path.join(__dirname, "./sessions");
 const credsPath = path.join(sessionDir, "creds.json");
-
 if (!fsSync.existsSync(sessionDir)) {
   fsSync.mkdirSync(sessionDir, { recursive: true });
 }
 
 async function loadSession() {
   try {
-    if (!config.SESSION_ID) {
+    const sessionId = process.env.SESSION_ID || config.SESSION_ID;
+    if (!sessionId) {
       console.log(chalk.red("No SESSION_ID provided - Falling back to QR or pairing code"));
       return null;
     }
-
-    if (config.SESSION_ID.startsWith("X-GURU~")) {
-      console.log(chalk.yellow("[ ⏳ ] Decoding base64 session..."));
-      const base64Data = config.SESSION_ID.replace("Silena-luna~", "");
-      if (!/^[A-Za-z0-9+/=]+$/.test(base64Data)) {
-        throw new Error("Invalid base64 format in SESSION_ID");
-      }
-      const decodedData = Buffer.from(base64Data, "base64");
-      let sessionData;
-      try {
-        sessionData = JSON.parse(decodedData.toString("utf-8"));
-      } catch (error) {
-        throw new Error("Failed to parse decoded base64 session data: " + error.message);
-      }
-      fsSync.writeFileSync(credsPath, decodedData);
-      console.log(chalk.green("[ ✅ ] Base64 session decoded and saved successfully"));
-      return sessionData;
-    } else if (config.SESSION_ID.startsWith("Silent-luna~")) {
-      console.log(chalk.yellow("[ ⏳ ] Downloading MEGA.nz session..."));
-      const megaFileId = config.SESSION_ID.replace("Silent-luna~", "");
-      const filer = File.fromURL(`https://mega.nz/file/${megaFileId}`);
-      const data = await new Promise((resolve, reject) => {
-        filer.download((err, data) => {
-          if (err) reject(err);
-          else resolve(data);
-        });
-      });
-      fsSync.writeFileSync(credsPath, data);
-      console.log(chalk.green("[ ✅ ] MEGA session downloaded successfully"));
-      return JSON.parse(data.toString());
-    } else {
-      throw new Error("Invalid SESSION_ID format. Use 'X-GURU~' for base64 or 'X-GURU~' for MEGA.nz");
+    if (!sessionId.startsWith("Xguru~")) {
+      throw new Error("Invalid SESSION_ID prefix. Expected 'Xguru~' for base64 sessions.");
     }
+    console.log(chalk.yellow("[ ⏳ ] Decoding base64 session..."));
+    const base64Data = sessionId.replace("Xguru~", "");
+    if (!/^[A-Za-z0-9+/=]+$/.test(base64Data)) {
+      throw new Error("Invalid base64 format in SESSION_ID");
+    }
+    const decodedData = Buffer.from(base64Data, "base64");
+    let sessionData;
+    try {
+      sessionData = JSON.parse(decodedData.toString("utf-8"));
+    } catch (error) {
+      throw new Error("Failed to parse decoded base64 session data: " + error.message);
+    }
+    fsSync.writeFileSync(credsPath, decodedData);
+    console.log(chalk.green("[ ✅ ] Base64 session decoded and saved successfully"));
+    return sessionData;
   } catch (error) {
     console.error(chalk.red("❌ Error loading session:", error.message));
     console.log(chalk.green("Will attempt QR code or pairing code login"));
