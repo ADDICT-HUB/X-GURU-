@@ -34,14 +34,21 @@ malvin({
     filename: __filename
 }, async (malvin, mek, m, { from, sender, reply }) => {
     try {
+        const prefix = config.PREFIX || '.';
+        const ownerName = config.OWNER_NAME || 'GuruTech';
+        const botName = config.BOT_NAME || 'X-GURU';
+        const repoLink = config.REPO || 'https://github.com/ADDICT-HUB/X-GURU';
+        const timezone = config.TIMEZONE || 'Africa/Harare';
+
         // High-resolution start time
         const start = process.hrtime.bigint();
 
-        // Random emoji and loading bar
-        const reactionEmoji = emojiSets.reactions[Math.floor(Math.random() * emojiSets.reactions.length)];
-        const loadingBar = emojiSets.bars[Math.floor(Math.random() * emojiSets.bars.length)];
+        // Animate "alive" loading bar for live feel
+        const loadingFrames = ['▰▱▱▱▱▱▱▱▱▱','▰▰▱▱▱▱▱▱▱▱','▰▰▰▱▱▱▱▱▱▱','▰▰▰▰▱▱▱▱▱▱','▰▰▰▰▰▱▱▱▱▱'];
+        let frameIndex = 0;
 
         // React with emoji (with retry)
+        const reactionEmoji = emojiSets.reactions[Math.floor(Math.random() * emojiSets.reactions.length)];
         let attempts = 0;
         const maxAttempts = 2;
         while (attempts < maxAttempts) {
@@ -54,44 +61,37 @@ malvin({
             }
         }
 
-        // Calculate response time in seconds
-        const responseTime = Number(process.hrtime.bigint() - start) / 1e9;
+        // Animate 3 frames to make speed/time feel alive
+        let finalMessageId;
+        for (let i = 0; i < 3; i++) {
+            const loadingBar = loadingFrames[frameIndex % loadingFrames.length];
+            frameIndex++;
 
-        // Determine status based on response time
-        const statusText = emojiSets.status.find(s => responseTime < s.threshold)?.text || '🐢 Slow';
+            // Time info (cache formatting for performance)
+            const cacheKey = `${timezone}:${moment().format('YYYY-MM-DD HH:mm:ss')}`;
+            let time, date;
+            if (formatCache.has(cacheKey)) {
+                ({ time, date } = formatCache.get(cacheKey));
+            } else {
+                time = moment().tz(timezone).format('HH:mm:ss');
+                date = moment().tz(timezone).format('DD/MM/YYYY');
+                formatCache.set(cacheKey, { time, date });
+                if (formatCache.size > 100) formatCache.clear();
+            }
 
-        // Time info (cache formatting for performance)
-        const timezone = config.TIMEZONE || 'Africa/Harare';
-        const cacheKey = `${timezone}:${moment().format('YYYY-MM-DD HH:mm:ss')}`;
-        let time, date;
-        if (formatCache.has(cacheKey)) {
-            ({ time, date } = formatCache.get(cacheKey));
-        } else {
-            time = moment().tz(timezone).format('HH:mm:ss');
-            date = moment().tz(timezone).format('DD/MM/YYYY');
-            formatCache.set(cacheKey, { time, date });
-            if (formatCache.size > 100) formatCache.clear(); // Prevent memory leak
-        }
+            // Calculate response time
+            const responseTime = Number(process.hrtime.bigint() - start) / 1e9;
+            const statusText = emojiSets.status.find(s => responseTime < s.threshold)?.text || '🐢 Slow';
 
-        // Uptime
-        const uptimeSeconds = Number(process.hrtime.bigint() - botStartTime) / 1e9;
-        const uptime = moment.duration(uptimeSeconds, 'seconds').humanize();
+            // Uptime
+            const uptimeSeconds = Number(process.hrtime.bigint() - botStartTime) / 1e9;
+            const uptime = moment.duration(uptimeSeconds, 'seconds').humanize();
 
-        // Memory usage
-        const memory = process.memoryUsage();
-        const memoryUsage = `${(memory.heapUsed / 1024 / 1024).toFixed(2)}/${(memory.heapTotal / 1024 / 1024).toFixed(2)} MB`;
+            // Memory usage
+            const memory = process.memoryUsage();
+            const memoryUsage = `${(memory.heapUsed / 1024 / 1024).toFixed(2)}/${(memory.heapTotal / 1024 / 1024).toFixed(2)} MB`;
 
-        // System info
-        const nodeVersion = process.version;
-
-        // Owner & bot name
-        const ownerName = config.OWNER_NAME || 'Marisel';
-        const botName = config.BOT_NAME || '𝖒𝖆𝖗𝖎𝖘𝖊𝖑';
-        const repoLink = config.REPO || 'https://github.com/betingrich4/Mercedes';
-
-        // Final output
-        const pingMsg = `
-
+            const pingMsg = `
 *${statusText}*
 
 ⚡ \`Response Time:\` ${responseTime.toFixed(2)}s
@@ -99,7 +99,7 @@ malvin({
 📅 \`Date:\` ${date}
 ⏱️ \`Uptime:\` ${uptime}
 💾 \`Memory Usage:\` ${memoryUsage}
-🖥️ \`Node Version:\` ${nodeVersion}
+🖥️ \`Node Version:\` ${process.version}
 
 💻 \`Developer:\` ${ownerName}
 🤖 \`Bot Name:\` ${botName}
@@ -107,31 +107,29 @@ malvin({
 🌟 Don't forget to *star* & *fork* the repo!
 🔗 ${repoLink}
 
-${loadingBar}
+Loading: ${loadingBar}
 `.trim();
 
-        // Send message with retry
-        attempts = 0;
-        while (attempts < maxAttempts) {
-            try {
-                await malvin.sendMessage(from, {
+            if (!finalMessageId) {
+                const sent = await malvin.sendMessage(from, {
                     text: pingMsg,
                     contextInfo: {
                         mentionedJid: [sender],
                         forwardingScore: 999,
                         isForwarded: true,
                         forwardedNewsletterMessageInfo: {
-                            newsletterJid: '120363299029326322@newsletter',
-                            newsletterName: `𝖒𝖆𝖗𝖎𝖘𝖊𝖑`,
+                            newsletterJid: '120363421164015033@newsletter',
+                            newsletterName: ownerName,
                             serverMessageId: 143
                         }
                     }
                 }, { quoted: mek });
-                break;
-            } catch (sendError) {
-                attempts++;
-                if (attempts === maxAttempts) throw new Error('Failed to send message');
+                finalMessageId = sent.key;
+            } else {
+                await malvin.editMessage(from, finalMessageId, { text: pingMsg });
             }
+
+            await new Promise(res => setTimeout(res, 800));
         }
 
         // Success reaction
